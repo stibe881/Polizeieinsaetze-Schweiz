@@ -10,6 +10,13 @@ static class Program
 {
     static async Task<int> Main(string[] args)
     {
+        if (args.Length >= 4 && args[0] == "boundaries")
+        {   // SwissWorldBaker boundaries <cantons.shp> <municipalities.shp> <out.spj>
+            var ab = AdminBoundaries.FromShapefiles(args[1], args[2], 25);
+            ab.Save(args[3]);
+            Console.WriteLine($"{ab.Cantons.Count} cantons, {ab.Municipalities.Count} municipalities → {args[3]} ({new System.IO.FileInfo(args[3]).Length / 1024} kB)");
+            return 0;
+        }
         double lat = 46.94658, lon = 7.44410; int radius = 2;
         string outDir = "Assets/StreamingAssets/SwissWorld", cache = ".cache/swiss-import";
         var src = OsmSourceKind.OsmApi; string overpass = null; bool surface = true;
