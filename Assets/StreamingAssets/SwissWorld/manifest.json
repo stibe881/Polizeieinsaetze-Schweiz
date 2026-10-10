@@ -1,0 +1,10 @@
+{
+  "name": "Pilot",
+  "centerE": 2600416.2,
+  "centerN": 1199499.4,
+  "terrainResolution": 257,
+  "minTileX": 2598, "maxTileX": 2602,
+  "minTileY": 1197, "maxTileY": 1201,
+  "createdUtc": "2026-10-10T22:31:57.0778098Z",
+  "attribution": "Höhendaten: swissALTI3D © swisstopo. Strassen: © OpenStreetMap contributors (ODbL)."
+}

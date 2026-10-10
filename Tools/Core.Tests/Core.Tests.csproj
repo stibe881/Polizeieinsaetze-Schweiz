@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The SAME source files Unity compiles as assembly SPS.Core (noEngineReferences). -->
+    <Compile Include="../../Assets/SwissPoliceSim/Core/**/*.cs" />
+    <Compile Include="../../Assets/SwissPoliceSim/Tests/EditMode/Core/**/*.cs" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.*" />
+    <PackageReference Include="NUnit" Version="3.*" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.*" />
+  </ItemGroup>
+</Project>
