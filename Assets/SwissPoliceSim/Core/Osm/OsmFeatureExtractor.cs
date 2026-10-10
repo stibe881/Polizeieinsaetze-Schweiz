@@ -99,6 +99,11 @@ namespace SwissPoliceSim.Core.Osm
             string mt = Tag(t, "maxspeed:type") ?? Tag(t, "source:maxspeed");
             if (mt == "CH:urban") road.UrbanHint = 1;
             else if (mt == "CH:rural") road.UrbanHint = 0;
+            else if (mt != null && mt.StartsWith("CH:zone", StringComparison.Ordinal))
+            {   // CH:zone30 / CH:zone:30 / CH:zone20 (Begegnungszone) / CH:zone50
+                string digits = mt.Substring(7).TrimStart(':');
+                if (road.ZoneSpeedKmh == 0 && int.TryParse(digits, out int zs)) road.ZoneSpeedKmh = zs;
+            }
             string zone = Tag(t, "zone:maxspeed") ?? Tag(t, "maxspeed:zone");
             if (road.ZoneSpeedKmh == 0 && zone != null && zone.StartsWith("CH:", StringComparison.Ordinal))
                 int.TryParse(zone.Substring(3), out road.ZoneSpeedKmh);

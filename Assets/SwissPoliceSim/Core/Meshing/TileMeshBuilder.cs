@@ -21,7 +21,7 @@ namespace SwissPoliceSim.Core.Meshing
         public List<PointFeature> Points = new List<PointFeature>();
         public List<RailFeature> Rails = new List<RailFeature>();
         public List<BuildingFeature> Buildings = new List<BuildingFeature>();
-        public MeshData RoadMesh, BuildingMesh, WaterMesh;
+        public MeshData RoadMesh, BuildingMesh, WaterMesh, FurnitureMesh;
     }
 
     public static class TileMeshBuilder
@@ -65,6 +65,7 @@ namespace SwissPoliceSim.Core.Meshing
                     if (best != null) RoadMesher.AddCrossing(rm, p.E, p.N, te, tn, best, ground);
                 }
             t.RoadMesh = rm;
+            t.FurnitureMesh = FurnitureMesher.Build(t.Points, t.Roads, te, tn, ground);
 
             var bm = BuildingMesher.NewMesh();
             foreach (var b in t.Buildings)

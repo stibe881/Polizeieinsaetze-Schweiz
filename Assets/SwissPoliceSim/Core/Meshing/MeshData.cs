@@ -10,6 +10,7 @@ namespace SwissPoliceSim.Core.Meshing
         public readonly List<float> Normals = new List<float>();     // xyz
         public readonly List<float> Uvs = new List<float>();         // uv
         public readonly List<byte> Colors = new List<byte>();        // rgba
+        public readonly List<float> Uv2 = new List<float>();         // second uv channel (2 floats per vertex; used by signal lenses)
         public readonly List<int>[] Indices;
 
         public MeshData(int submeshes) { Indices = new List<int>[submeshes]; for (int i = 0; i < submeshes; i++) Indices[i] = new List<int>(); }
@@ -23,8 +24,11 @@ namespace SwissPoliceSim.Core.Meshing
             Normals.Add(nx); Normals.Add(ny); Normals.Add(nz);
             Uvs.Add(u); Uvs.Add(v);
             Colors.Add(r); Colors.Add(g); Colors.Add(b); Colors.Add(a);
+            Uv2.Add(0); Uv2.Add(0);
             return VertexCount - 1;
         }
+
+        public void SetUv2(int vertex, float a, float b) { Uv2[vertex * 2] = a; Uv2[vertex * 2 + 1] = b; }
 
         public void AddTriangle(int sub, int a, int b, int c) { var l = Indices[sub]; l.Add(a); l.Add(b); l.Add(c); }
 
@@ -58,7 +62,7 @@ namespace SwissPoliceSim.Core.Meshing
         public void Append(MeshData o)
         {
             int baseV = VertexCount;
-            Positions.AddRange(o.Positions); Normals.AddRange(o.Normals); Uvs.AddRange(o.Uvs); Colors.AddRange(o.Colors);
+            Positions.AddRange(o.Positions); Normals.AddRange(o.Normals); Uvs.AddRange(o.Uvs); Colors.AddRange(o.Colors); Uv2.AddRange(o.Uv2);
             for (int s = 0; s < Indices.Length && s < o.Indices.Length; s++)
                 foreach (int i in o.Indices[s]) Indices[s].Add(i + baseV);
         }

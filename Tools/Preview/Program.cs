@@ -52,6 +52,9 @@ static class Program
         public Mat RoofPitched = new Mat { Mips = Mat.MakeMips(ProceduralTextures.RoofTiles()), Specular = 0.06f, DoubleSided = true };
         public Mat RoofFlat = new Mat { Mips = Mat.MakeMips(ProceduralTextures.FlatRoof()), Specular = 0.02f, DoubleSided = true };
         public Mat Water = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Water()), Alpha = 0.82f, Specular = 0.9f, Gloss = 180, Sky = true, UseVertexColor = false, DoubleSided = true };
+        public Mat Metal = new Mat { UseVertexColor = true, Specular = 0.3f, Gloss = 30 };
+        public Mat Lens = new Mat { UseVertexColor = true, Emissive = new Vector3(0.35f), Specular = 0.5f };
+        public Mat SignFace = new Mat { UseVertexColor = true, Specular = 0.3f, DoubleSided = true };
         public Mat Trunk = new Mat { UseVertexColor = true };
         public Mat Foliage = new Mat { UseVertexColor = true, Specular = 0.04f };
     }
@@ -74,6 +77,7 @@ static class Program
             var off = Matrix4x4.CreateTranslation((float)(TileGrid.MinE(t.Tile) - OE), 0, (float)(TileGrid.MinN(t.Tile) - ON));
             r.Add(TerrainMesh(t, 1), off, m.Grass);
             r.Add(t.RoadMesh, off, m.Asphalt0, m.Asphalt1, m.Asphalt2, m.Sidewalk, m.MarkWhite, m.MarkWhite);
+            r.Add(t.FurnitureMesh, off, m.Metal, m.Lens, m.SignFace);
             r.Add(t.BuildingMesh, off, m.Facade0, m.Facade1, m.Facade2, m.RoofPitched, m.RoofFlat);
             if (t.WaterMesh != null) r.Add(t.WaterMesh, off, m.Water);
             int rn = 0;

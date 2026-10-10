@@ -1,0 +1,122 @@
+[
+ {
+  "sr": "741.01",
+  "work": "https://fedlex.data.admin.ch/eli/cc/1959/679_705_685",
+  "consolidation": "https://fedlex.data.admin.ch/eli/cc/1959/679_705_685/20260701",
+  "applicable_from": "2026-07-01",
+  "source": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/1959/679_705_685/20260701/de/html/fedlex-data-admin-ch-eli-cc-1959-679_705_685-20260701-de-html.html",
+  "retrieved": "2026-10-10",
+  "sha256": "73c0ce7d68836e1c396b45be771314b26172755c9dab437933bdd9b9c6c73972",
+  "chars": 169718
+ },
+ {
+  "sr": "741.11",
+  "work": "https://fedlex.data.admin.ch/eli/cc/1962/1364_1409_1420",
+  "consolidation": "https://fedlex.data.admin.ch/eli/cc/1962/1364_1409_1420/20261001",
+  "applicable_from": "2026-10-01",
+  "source": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/1962/1364_1409_1420/20261001/de/html/fedlex-data-admin-ch-eli-cc-1962-1364_1409_1420-20261001-de-html.html",
+  "retrieved": "2026-10-10",
+  "sha256": "548acbe6fbaaa5bd9c6e08fe3b55b4420eaeccaf7db46798391f5d27b805e58d",
+  "chars": 158944
+ },
+ {
+  "sr": "311.0",
+  "work": "https://fedlex.data.admin.ch/eli/cc/54/757_781_799",
+  "consolidation": "https://fedlex.data.admin.ch/eli/cc/54/757_781_799/20261001",
+  "applicable_from": "2026-10-01",
+  "source": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/54/757_781_799/20261001/de/html/fedlex-data-admin-ch-eli-cc-54-757_781_799-20261001-de-html.html",
+  "retrieved": "2026-10-10",
+  "sha256": "3266fb67adc87b934b05b885bab3457960933815b3894447a5f3ea7f5ab9d987",
+  "chars": 397188
+ },
+ {
+  "sr": "312.0",
+  "work": "https://fedlex.data.admin.ch/eli/cc/2010/267",
+  "consolidation": "https://fedlex.data.admin.ch/eli/cc/2010/267/20250401",
+  "applicable_from": "2025-04-01",
+  "source": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2010/267/20250401/de/html/fedlex-data-admin-ch-eli-cc-2010-267-20250401-de-html-4.html",
+  "retrieved": "2026-10-10",
+  "sha256": "ceffdfdc5257916ff9789f49e90242854b83ce6aa9d3ea387c42380585c2cb5c",
+  "chars": 327346
+ },
+ {
+  "sr": "741.013",
+  "work": "https://fedlex.data.admin.ch/eli/cc/2007/296",
+  "consolidation": "https://fedlex.data.admin.ch/eli/cc/2007/296/20260101",
+  "applicable_from": "2026-01-01",
+  "source": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2007/296/20260101/de/html/fedlex-data-admin-ch-eli-cc-2007-296-20260101-de-html-1.html",
+  "retrieved": "2026-10-10",
+  "sha256": "a8ee039c316433b54d150bcf44172046b5d4ce7937b97e29b95ce61cee7c57ae",
+  "chars": 46056
+ },
+ {
+  "sr": "364",
+  "work": "https://fedlex.data.admin.ch/eli/cc/2008/759",
+  "consolidation": "https://fedlex.data.admin.ch/eli/cc/2008/759/20220601",
+  "applicable_from": "2022-06-01",
+  "source": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2008/759/20220601/de/html/fedlex-data-admin-ch-eli-cc-2008-759-20220601-de-html-7.html",
+  "retrieved": "2026-10-10",
+  "sha256": "13bfe17b721b6dacb4429f26f4c36f95c71572f606b8a270574d3b8a9c596e35",
+  "chars": 14004
+ },
+ {
+  "sr": "741.21",
+  "work": "https://fedlex.data.admin.ch/eli/cc/1979/1961_1961_1961",
+  "consolidation": "https://fedlex.data.admin.ch/eli/cc/1979/1961_1961_1961/20261001",
+  "applicable_from": "2026-10-01",
+  "source": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/1979/1961_1961_1961/20261001/de/html/fedlex-data-admin-ch-eli-cc-1979-1961_1961_1961-20261001-de-html-2.html",
+  "retrieved": "2026-10-10",
+  "sha256": "7828e68a3f615be5a97a54e8de8b15d5638a87596aa3d408b5b0279aecd95d3e",
+  "chars": 241703
+ },
+ {
+  "sr": "741.51",
+  "work": "https://fedlex.data.admin.ch/eli/cc/1976/2423_2423_2423",
+  "consolidation": "https://fedlex.data.admin.ch/eli/cc/1976/2423_2423_2423/20260101",
+  "applicable_from": "2026-01-01",
+  "source": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/1976/2423_2423_2423/20260101/de/html/fedlex-data-admin-ch-eli-cc-1976-2423_2423_2423-20260101-de-html-3.html",
+  "retrieved": "2026-10-10",
+  "sha256": "afeda5d18d5cde2c3ebb9df4798db80c627713770444ff26893330ec6468de4d",
+  "chars": 291541
+ },
+ {
+  "sr": "314.11",
+  "work": "https://fedlex.data.admin.ch/eli/cc/2019/93",
+  "consolidation": "https://fedlex.data.admin.ch/eli/cc/2019/93/20260801",
+  "applicable_from": "2026-08-01",
+  "source": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2019/93/20260801/de/html/fedlex-data-admin-ch-eli-cc-2019-93-20260801-de-html-2.html",
+  "retrieved": "2026-10-10",
+  "sha256": "83e9e5aff65e51caed043e32bb6b2deb64b8f7b7cf04e0af910e2fa4136b67c7",
+  "chars": 67964
+ },
+ {
+  "sr": "314.1",
+  "work": "https://fedlex.data.admin.ch/eli/cc/2017/725",
+  "consolidation": "https://fedlex.data.admin.ch/eli/cc/2017/725/20250101",
+  "applicable_from": "2025-01-01",
+  "source": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2017/725/20250101/de/html/fedlex-data-admin-ch-eli-cc-2017-725-20250101-de-html-1.html",
+  "retrieved": "2026-10-10",
+  "sha256": "77bd15612fe9d8dfbba64af5091d90d4053748df3a6e6b9f5c83f08fe9419451",
+  "chars": 12399
+ },
+ {
+  "sr": "741.13",
+  "work": "https://fedlex.data.admin.ch/eli/cc/2015/493",
+  "consolidation": "https://fedlex.data.admin.ch/eli/cc/2015/493/20161001",
+  "applicable_from": "2016-10-01",
+  "source": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2015/493/20161001/de/html/fedlex-data-admin-ch-eli-cc-2015-493-20161001-de-html-6.html",
+  "retrieved": "2026-10-10",
+  "sha256": "43a1de34a5fd37494992ed5ab2a24f57d9ac5fcec6b168630f395f588e6aef0b",
+  "chars": 1336
+ },
+ {
+  "sr": "101",
+  "work": "https://fedlex.data.admin.ch/eli/cc/1999/404",
+  "consolidation": "https://fedlex.data.admin.ch/eli/cc/1999/404/20240303",
+  "applicable_from": "2024-03-03",
+  "source": "https://fedlex.data.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/1999/404/20240303/de/html/fedlex-data-admin-ch-eli-cc-1999-404-20240303-de-html-10.html",
+  "retrieved": "2026-10-10",
+  "sha256": "2c7cb1a216ffaf3567824d7015c8bd1b8d158b2c9741900e7efa526530b8a7bb",
+  "chars": 198642
+ }
+]
