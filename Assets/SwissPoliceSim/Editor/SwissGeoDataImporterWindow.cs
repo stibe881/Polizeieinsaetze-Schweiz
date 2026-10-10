@@ -16,8 +16,7 @@ namespace SwissPoliceSim.Editor
     {
         double _lat = 46.94658, _lon = 7.44410;
         int _radius = 2;
-        bool _terrain = true, _roads = true;
-        int _osmSource;
+                int _osmSource;
         string _overpassUrl = "https://overpass-api.de/api/interpreter";
         string _log = "";
         Vector2 _scroll;
@@ -47,15 +46,13 @@ namespace SwissPoliceSim.Editor
         void OnGUI()
         {
             EditorGUILayout.HelpBox(
-                "Lädt swissALTI3D (swisstopo) und OpenStreetMap-Strassen und speichert 1-km-Kacheln in StreamingAssets/SwissWorld.\n" +
+                "Lädt swissALTI3D, swissSURFACE3D (swisstopo) und OpenStreetMap und speichert 1-km-Kacheln in StreamingAssets/SwissWorld/tiles.\n" +
                 "Quellenangaben sind Pflicht (swisstopo OGD, OSM ODbL) – siehe docs/DATA_SOURCES.md.", MessageType.Info);
             _lat = EditorGUILayout.DoubleField("Zentrum Breite (WGS84)", _lat);
             _lon = EditorGUILayout.DoubleField("Zentrum Länge (WGS84)", _lon);
             _radius = EditorGUILayout.IntSlider("Radius (Kacheln à 1 km)", _radius, 0, 6);
             int n = (2 * _radius + 1) * (2 * _radius + 1);
             EditorGUILayout.LabelField($"= {n} Kacheln ({n} km²)");
-            _terrain = EditorGUILayout.Toggle("Gelände (swissALTI3D, 2 m)", _terrain);
-            _roads = EditorGUILayout.Toggle("Strassen (OSM)", _roads);
             _osmSource = EditorGUILayout.Popup("OSM-Quelle", _osmSource, new[] { "OSM-API (nur kleine Gebiete)", "Overpass (empfohlen)" });
             if (_osmSource == 1) _overpassUrl = EditorGUILayout.TextField("Overpass-URL", _overpassUrl);
 
@@ -75,12 +72,12 @@ namespace SwissPoliceSim.Editor
             string outDir = Path.Combine(Application.streamingAssetsPath, "SwissWorld");
             string cache = Path.Combine(Path.GetDirectoryName(Application.dataPath), "Library", "SwissImportCache");
             var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-            var imp = new SwissWorldImporter(http, s => _lines.Enqueue(s))
+            var imp = new WorldBuilder(http, s => _lines.Enqueue(s))
             {
                 OsmSource = _osmSource == 1 ? OsmSourceKind.Overpass : OsmSourceKind.OsmApi, OverpassUrl = _overpassUrl
             };
-            int radius = _radius; bool t = _terrain, r = _roads; var token = _cts.Token;
-            _task = Task.Run(() => imp.ImportAsync(center, radius, outDir, cache, t, r, token), token);
+            int radius = _radius; var token = _cts.Token;
+            _task = Task.Run(() => imp.BuildAsync(center, radius, outDir, cache, token), token);
         }
     }
 }

@@ -200,7 +200,7 @@ namespace SwissPoliceSim.Tests
             string d = TestContext.CurrentContext.TestDirectory;
             for (int i = 0; i < 8 && d != null; i++, d = Path.GetDirectoryName(d))
             {
-                string p = Path.Combine(d, "Assets", "StreamingAssets", "SwissWorld");
+                string p = Path.Combine(d, "Assets", "StreamingAssets", "SwissWorld", "tiles");
                 if (Directory.Exists(p)) return p;
             }
             return null;
@@ -209,34 +209,50 @@ namespace SwissPoliceSim.Tests
         [Test]
         public void BundesplatzTerrain_IsAbout540Metres()
         {
-            string dir = Dir();
-            string f = dir == null ? null : Path.Combine(dir, "terrain", "2600-1199.spt");
-            if (f == null || !File.Exists(f)) Assert.Ignore("Pilot data not baked (run Tools/SwissWorldBaker).");
-            TerrainTileData d;
-            using (var s = File.OpenRead(f)) d = TerrainTileData.Read(s);
-            var bp = SwissCoordinateConverter.ToLv95(46.94658, 7.44410); // Bundesplatz
+            string dir = Dir(); if (dir == null) Assert.Ignore("Pilot data not baked (run Tools/SwissWorldBaker).");
+            var src = new SwissPoliceSim.Core.Storage.LooseTileSource(dir);
+            Assert.IsTrue(src.TryRead(new TileId(2600, 1199), out var bytes));
+            var tile = SwissPoliceSim.Core.Meshing.TileMeshBuilder.Build(bytes, meshes: false);
+            var bp = SwissCoordinateConverter.ToLv95(46.94658, 7.44410);
             Assert.AreEqual(new TileId(2600, 1199), TileGrid.FromLv95(bp.E, bp.N));
-            float h = d.SampleLocal(bp.E - TileGrid.MinE(d.Tile), bp.N - TileGrid.MinN(d.Tile));
+            float h = tile.Terrain.SampleLocal(bp.E - TileGrid.MinE(tile.Tile), bp.N - TileGrid.MinN(tile.Tile));
             Assert.That(h, Is.InRange(530f, 552f), "Bern lies at ~540 m a.s.l.");
         }
 
         [Test]
         public void RealRoadNetwork_RoutesBundesplatzToWankdorfStadium()
         {
-            string dir = Dir();
-            if (dir == null || !Directory.Exists(Path.Combine(dir, "roads"))) Assert.Ignore("Pilot data not baked.");
+            string dir = Dir(); if (dir == null) Assert.Ignore("Pilot data not baked.");
+            var src = new SwissPoliceSim.Core.Storage.LooseTileSource(dir);
             var ways = new System.Collections.Generic.List<SwissPoliceSim.Core.Roads.RoadWay>();
-            foreach (var f in Directory.GetFiles(Path.Combine(dir, "roads"), "*.spr"))
-                using (var s = File.OpenRead(f)) ways.AddRange(SwissPoliceSim.Core.Roads.RoadTileFile.Read(s, out _));
+            foreach (var t in src.Tiles) { src.TryRead(t, out var b); ways.AddRange(SwissPoliceSim.Core.Meshing.TileMeshBuilder.Build(b, meshes: false).Roads); }
             Assert.Greater(ways.Count, 1000);
             var g = SwissPoliceSim.Core.Roads.RoadGraph.Build(ways);
-            var a = SwissCoordinateConverter.ToLv95(46.94658, 7.44410);   // Bundesplatz
-            var b = SwissCoordinateConverter.ToLv95(46.96330, 7.46490);   // Stadion Wankdorf
-            var r = g.FindRoute(a.E, a.N, b.E, b.N);
+            var a = SwissCoordinateConverter.ToLv95(46.94658, 7.44410);
+            var bb = SwissCoordinateConverter.ToLv95(46.96330, 7.46490);
+            var r = g.FindRoute(a.E, a.N, bb.E, bb.N);
             Assert.IsNotNull(r, "no route: network not connected across tiles?");
-            double straight = Math.Sqrt(Math.Pow(a.E - b.E, 2) + Math.Pow(a.N - b.N, 2));
+            double straight = Math.Sqrt(Math.Pow(a.E - bb.E, 2) + Math.Pow(a.N - bb.N, 2));
             TestContext.WriteLine($"straight {straight:F0} m, route {r.DistanceMeters:F0} m, {r.TimeSeconds / 60:F1} min, nodes {r.Count}");
             Assert.That(r.DistanceMeters, Is.InRange(straight, straight * 2.0));
+        }
+
+        [Test]
+        public void RealBern_DataIsRich_BuildingsTreesWater()
+        {
+            string dir = Dir(); if (dir == null) Assert.Ignore("Pilot data not baked.");
+            var src = new SwissPoliceSim.Core.Storage.LooseTileSource(dir);
+            int buildings = 0, measured = 0, trees = 0, water = 0, crossings = 0, signals = 0;
+            foreach (var t in src.Tiles)
+            {
+                src.TryRead(t, out var b); var c = SwissPoliceSim.Core.Meshing.TileMeshBuilder.Build(b, meshes: false);
+                buildings += c.Buildings.Count; foreach (var x in c.Buildings) if (x.HeightMeasured) measured++;
+                trees += c.Trees.Count; if (c.WaterMesh != null) water += c.WaterMesh.VertexCount > 0 ? 1 : 0;
+                foreach (var p in c.Points) { if (p.Kind == SwissPoliceSim.Core.Features.PointKind.Crossing) crossings++; if (p.Kind == SwissPoliceSim.Core.Features.PointKind.TrafficSignals) signals++; }
+            }
+            TestContext.WriteLine($"buildings {buildings} (measured {measured}), trees {trees}, tiles with water {water}, crossings {crossings}, signals {signals}");
+            Assert.Greater(buildings, 10000); Assert.Greater(measured * 1.0 / buildings, 0.9);
+            Assert.Greater(trees, 50000); Assert.Greater(water, 3); Assert.Greater(crossings, 100); Assert.Greater(signals, 20);
         }
     }
 }

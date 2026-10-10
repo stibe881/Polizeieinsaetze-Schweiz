@@ -19,12 +19,15 @@ namespace SwissPoliceSim.Core.Import
         public sealed class AssetRef { public string ItemId; public int Year; public string Href; }
 
         /// <summary>Finds the newest XYZ.zip asset of the given resolution (0.5 or 2 m) for a 1 km tile.</summary>
-        public async Task<AssetRef> FindHeightAssetAsync(TileId tile, string cellSizeToken = "2")
+        public Task<AssetRef> FindHeightAssetAsync(TileId tile, string cellSizeToken = "2") => FindAssetAsync("ch.swisstopo.swissalti3d", tile, cellSizeToken);
+
+        /// <summary>Newest XYZ.zip asset of any swisstopo 1 km-tile collection (swissALTI3D, swissSURFACE3D Raster, ...).</summary>
+        public async Task<AssetRef> FindAssetAsync(string collection, TileId tile, string cellSizeToken)
         {
             var c = SwissCoordinateConverter.ToWgs84(new Lv95(TileGrid.MinE(tile) + 500, TileGrid.MinN(tile) + 500));
             string bbox = string.Format(CultureInfo.InvariantCulture, "{0:F6},{1:F6},{2:F6},{3:F6}",
                 c.Lon - 0.0001, c.Lat - 0.0001, c.Lon + 0.0001, c.Lat + 0.0001);
-            string url = $"{BaseUrl}/collections/ch.swisstopo.swissalti3d/items?bbox={bbox}&limit=100";
+            string url = $"{BaseUrl}/collections/{collection}/items?bbox={bbox}&limit=100";
             string json = await _http.GetStringAsync(url).ConfigureAwait(false);
             return PickNewest(MiniJson.Parse(json), tile, cellSizeToken);
         }

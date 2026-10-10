@@ -56,6 +56,7 @@ namespace SwissPoliceSim.Core.Roads
 
         public void AddWay(RoadWay w)
         {
+            if (!w.IsVehicular) return;
             double ms = w.EffectiveSpeedKmh(out _) / 3.6;
             for (int k = 1; k < w.PointCount; k++)
             {

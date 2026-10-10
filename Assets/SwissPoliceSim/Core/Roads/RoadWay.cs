@@ -6,12 +6,24 @@ namespace SwissPoliceSim.Core.Roads
     public enum RoadClass : byte
     {
         Motorway = 0, MotorwayLink, Trunk, TrunkLink, Primary, PrimaryLink, Secondary, SecondaryLink,
-        Tertiary, TertiaryLink, Unclassified, Residential, LivingStreet, Service, Track
+        Tertiary, TertiaryLink, Unclassified, Residential, LivingStreet, Service, Track,
+        // non-vehicular (pedestrians / cyclists only)
+        Pedestrian, Footway, Cycleway, Path, Steps
     }
 
     public enum OneWay : byte { No = 0, Forward = 1, Reverse = 2 }
 
-    public enum SpeedSource : byte { Default = 0, Tagged = 1 }
+    /// <summary>How <see cref="RoadWay.SpeedKmh"/> was determined. Everything except Tagged/Zone is derived from Swiss general limits.</summary>
+    public enum SpeedSource : byte
+    {
+        Default = 0,        // no information, class based guess (should be rare)
+        Tagged = 1,         // explicit OSM maxspeed
+        Zone = 2,           // Tempo-30-Zone / Begegnungszone (zone:maxspeed / living_street)
+        LegalUrban = 3,     // general limit innerorts (50)
+        LegalRural = 4,     // general limit ausserorts (80)
+        LegalMotorroad = 5, // Autostrasse (100)
+        LegalMotorway = 6   // Autobahn (120)
+    }
 
     /// <summary>One OSM way (or a per-tile chunk of it) projected to LV95.</summary>
     public sealed class RoadWay
@@ -22,6 +34,11 @@ namespace SwissPoliceSim.Core.Roads
         public bool Bridge, Tunnel, Roundabout;
         public int MaxSpeedKmh;           // 0 = not tagged
         public int Lanes;                 // 0 = unknown
+        public bool Motorroad;            // OSM motorroad=yes (Autostrasse)
+        public int ZoneSpeedKmh;          // zone:maxspeed (e.g. 30), 0 = none
+        public sbyte UrbanHint = -1;      // -1 unknown, 0 rural, 1 urban (from maxspeed:type / source:maxspeed)
+        public int SpeedKmh;              // resolved limit (see SpeedLimitResolver); 0 = not yet resolved
+        public SpeedSource SpeedBasis;
         public string Name = "";
         public string Ref = "";
         public long[] NodeIds = new long[0];
@@ -32,6 +49,9 @@ namespace SwissPoliceSim.Core.Roads
 
         public int PointCount => E.Length;
 
+        /// <summary>True for ways cars may use (everything except pedestrian/cycle/path/steps).</summary>
+        public bool IsVehicular => Class <= RoadClass.Track;
+
         public double Length()
         {
             double l = 0;
@@ -41,15 +61,45 @@ namespace SwissPoliceSim.Core.Roads
 
         static double Sq(double v) => v * v;
 
-        /// <summary>Road width in metres used for the visual mesh (simplified; real lane data is a later phase).</summary>
-        public float VisualWidth()
+        /// <summary>Number of lanes of THIS way's carriageway (one direction for one-way ways, both directions otherwise).</summary>
+        public int CarriageLanes()
         {
-            float lanes = Lanes > 0 ? Lanes : DefaultLanes(Class);
-            float laneW = Class <= RoadClass.TrunkLink ? 3.6f : 3.0f;
-            if (OneWay == OneWay.No && Lanes > 0 && Lanes % 2 == 1) lanes = Lanes; // total lanes tagged
-            else if (OneWay == OneWay.No && Lanes == 0) lanes = DefaultLanes(Class);
-            return Math.Max(2.5f, lanes * laneW);
+            if (!IsVehicular) return 1;
+            if (Lanes > 0) return Lanes;
+            bool oneway = OneWay != OneWay.No;
+            switch (Class)
+            {
+                case RoadClass.Motorway: return oneway ? 2 : 4;
+                case RoadClass.Trunk: return oneway ? 2 : 2;
+                default: return oneway ? 1 : 2;
+            }
         }
+
+        public float LaneWidth()
+        {
+            switch (Class)
+            {
+                case RoadClass.Pedestrian: return 4.5f;
+                case RoadClass.Footway: return 2.0f;
+                case RoadClass.Cycleway: return 2.2f;
+                case RoadClass.Path: return 1.2f;
+                case RoadClass.Steps: return 1.6f;
+                case RoadClass.Motorway: case RoadClass.MotorwayLink: return 3.75f;
+                case RoadClass.Trunk: case RoadClass.TrunkLink: case RoadClass.Primary: return 3.5f;
+                case RoadClass.Secondary: case RoadClass.Tertiary: return 3.2f;
+                case RoadClass.Service: case RoadClass.Track: return 2.6f;
+                default: return 2.9f;
+            }
+        }
+
+        /// <summary>Asphalt width of the carriageway in metres.</summary>
+        public float CarriagewayWidth() => IsVehicular ? Math.Max(2.5f, CarriageLanes() * LaneWidth() * (Class == RoadClass.Track ? 1.1f : 1f)) : LaneWidth();
+
+        /// <summary>Hard shoulder (Pannenstreifen) width on each carriageway side (motorway: right side only).</summary>
+        public float ShoulderWidth() => Class == RoadClass.Motorway ? 2.8f : (Class == RoadClass.Trunk ? 1.2f : 0f);
+
+        /// <summary>Total width used for visual mesh / collision (asphalt incl. shoulder).</summary>
+        public float VisualWidth() => CarriagewayWidth() + ShoulderWidth();
 
         static int DefaultLanes(RoadClass c)
         {
@@ -71,6 +121,7 @@ namespace SwissPoliceSim.Core.Roads
         /// </summary>
         public int EffectiveSpeedKmh(out SpeedSource source)
         {
+            if (SpeedKmh > 0) { source = SpeedBasis; return SpeedKmh; }
             if (MaxSpeedKmh > 0) { source = SpeedSource.Tagged; return MaxSpeedKmh; }
             source = SpeedSource.Default;
             switch (Class)
@@ -84,6 +135,7 @@ namespace SwissPoliceSim.Core.Roads
                 case RoadClass.LivingStreet: return 20;
                 case RoadClass.Service: return 30;
                 case RoadClass.Track: return 30;
+                case RoadClass.Pedestrian: case RoadClass.Footway: case RoadClass.Cycleway: case RoadClass.Path: case RoadClass.Steps: return 5;
                 default: return 50;
             }
         }
@@ -110,6 +162,11 @@ namespace SwissPoliceSim.Core.Roads
                 case "living_street": c = RoadClass.LivingStreet; return true;
                 case "service": c = RoadClass.Service; return true;
                 case "track": c = RoadClass.Track; return true;
+                case "pedestrian": c = RoadClass.Pedestrian; return true;
+                case "footway": c = RoadClass.Footway; return true;
+                case "cycleway": c = RoadClass.Cycleway; return true;
+                case "path": c = RoadClass.Path; return true;
+                case "steps": c = RoadClass.Steps; return true;
                 default: c = RoadClass.Unclassified; return false;
             }
         }

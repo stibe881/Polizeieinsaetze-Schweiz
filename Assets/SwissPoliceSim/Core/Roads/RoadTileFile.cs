@@ -10,12 +10,12 @@ namespace SwissPoliceSim.Core.Roads
     /// Splits ways at tile borders and (de)serialises one tile's roads.
     /// A segment belongs to the tile containing its midpoint; consecutive segments in the same tile form one chunk,
     /// chunks share their border node so the network stays connected.
-    /// File: "SPR2", int X, int Y, int wayCount, per way: long id, byte class, byte oneway, byte flags, short maxspeed,
+    /// File: "SPR3", int X, int Y, int wayCount, per way: long id, byte class, byte oneway, byte flags, short maxspeed,
     /// byte lanes, string name, string ref, int n, long[n] nodeIds, float[n] x, float[n] z (metres from tile SW corner), float[n] h (m a.s.l.; NaN if unknown).
     /// </summary>
     public static class RoadTileFile
     {
-        public const string Magic = "SPR2";
+        public const string Magic = "SPR3";
 
         public static void Split(RoadWay way, Dictionary<TileId, List<RoadWay>> into)
         {
@@ -39,6 +39,7 @@ namespace SwissPoliceSim.Core.Roads
             {
                 OsmId = w.OsmId, Class = w.Class, OneWay = w.OneWay, Bridge = w.Bridge, Tunnel = w.Tunnel,
                 Roundabout = w.Roundabout, MaxSpeedKmh = w.MaxSpeedKmh, Lanes = w.Lanes, Name = w.Name, Ref = w.Ref,
+                Motorroad = w.Motorroad, ZoneSpeedKmh = w.ZoneSpeedKmh, UrbanHint = w.UrbanHint, SpeedKmh = w.SpeedKmh, SpeedBasis = w.SpeedBasis,
                 NodeIds = new long[n], E = new double[n], N = new double[n],
                 H = w.H.Length == w.NodeIds.Length ? new double[n] : new double[0]
             };
@@ -62,6 +63,7 @@ namespace SwissPoliceSim.Core.Roads
                     w.Write(way.OsmId); w.Write((byte)way.Class); w.Write((byte)way.OneWay);
                     w.Write((byte)((way.Bridge ? 1 : 0) | (way.Tunnel ? 2 : 0) | (way.Roundabout ? 4 : 0)));
                     w.Write((short)way.MaxSpeedKmh); w.Write((byte)way.Lanes);
+                    w.Write(way.Motorroad); w.Write((short)way.ZoneSpeedKmh); w.Write(way.UrbanHint); w.Write((short)way.SpeedKmh); w.Write((byte)way.SpeedBasis);
                     w.Write(way.Name); w.Write(way.Ref);
                     int n = way.PointCount;
                     w.Write(n);
@@ -89,6 +91,7 @@ namespace SwissPoliceSim.Core.Roads
                     byte f = r.ReadByte();
                     way.Bridge = (f & 1) != 0; way.Tunnel = (f & 2) != 0; way.Roundabout = (f & 4) != 0;
                     way.MaxSpeedKmh = r.ReadInt16(); way.Lanes = r.ReadByte();
+                    way.Motorroad = r.ReadBoolean(); way.ZoneSpeedKmh = r.ReadInt16(); way.UrbanHint = r.ReadSByte(); way.SpeedKmh = r.ReadInt16(); way.SpeedBasis = (SpeedSource)r.ReadByte();
                     way.Name = r.ReadString(); way.Ref = r.ReadString();
                     int n = r.ReadInt32();
                     way.NodeIds = new long[n]; way.E = new double[n]; way.N = new double[n];

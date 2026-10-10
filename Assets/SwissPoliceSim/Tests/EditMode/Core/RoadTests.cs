@@ -26,7 +26,8 @@ namespace SwissPoliceSim.Tests
         public void OsmParser_KeepsOnlyDrivablePublicWays_WithTags()
         {
             var ways = Parse();
-            Assert.AreEqual(2, ways.Count); // footway, private service and way with <2 resolvable nodes dropped
+            Assert.AreEqual(3, ways.Count); // private service and way with <2 resolvable nodes dropped; the footway is kept (not vehicular)
+            Assert.IsFalse(ways[2].IsVehicular);
             var p = ways[0];
             Assert.AreEqual(RoadClass.Primary, p.Class);
             Assert.AreEqual(50, p.MaxSpeedKmh);
