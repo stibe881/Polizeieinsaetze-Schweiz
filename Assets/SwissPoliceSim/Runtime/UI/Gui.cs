@@ -91,6 +91,12 @@ namespace SwissPoliceSim.UI
             GUI.SetNextControlName(controlName); var s = GUI.TextField(r, text, _field); return s;
         }
 
+        public static bool Toggle(Rect r, bool value, string label)
+        {
+            var box = new Rect(r.x, r.y + (r.height - 20) / 2, 20, 20); Fill(box, new Color(1, 1, 1, 0.10f), Rounded); if (value) Fill(new Rect(box.x + 4, box.y + 4, 12, 12), Good, Rounded);
+            Label(new Rect(r.x + 28, r.y, r.width - 28, r.height), label, Text, 14); if (Event.current.type == EventType.MouseDown && r.Contains(Event.current.mousePosition)) { value = !value; Event.current.Use(); } return value;
+        }
+
         public static void Bar(Rect r, float value01, Color fill, Color? bg = null)
         {
             Fill(r, bg ?? new Color(1, 1, 1, 0.08f), Rounded); var f = new Rect(r.x, r.y, Mathf.Max(0, r.width * Mathf.Clamp01(value01)), r.height); if (f.width > 1) Fill(f, fill, Rounded);
