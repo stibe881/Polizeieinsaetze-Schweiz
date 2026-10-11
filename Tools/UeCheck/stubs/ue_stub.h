@@ -282,7 +282,7 @@ template <class T> T* LoadObject(UObject*, const TCHAR*, const TCHAR* = nullptr,
 template <class T> T* LoadObject(UObject*, const FString&, const TCHAR*, int) { return nullptr; }
 struct FModuleManager { static FModuleManager& Get(); template <class M> static M& LoadModuleChecked(const wchar_t*) { static M m; return m; } };
 struct FDefaultGameModuleImpl {};
-struct FConfigCache { void GetString(const TCHAR*, const TCHAR*, FString&, const FString&) {} void GetArray(const TCHAR*, const TCHAR*, TArray<FString>&, const FString&) {} };
+struct FConfigCache { bool GetInt(const TCHAR*, const TCHAR*, int32&, const FString&) { return false; } void GetString(const TCHAR*, const TCHAR*, FString&, const FString&) {} void GetArray(const TCHAR*, const TCHAR*, TArray<FString>&, const FString&) {} };
 struct FCString { static float Atof(const TCHAR*) { return 0; } }; extern FConfigCache* GConfig; extern FString GGameIni;
 struct FCommandLine { static const TCHAR* Get() { return L""; } }; struct FParse { static bool Value(const TCHAR*, const TCHAR*, FString&) { return false; } };
 #define StaticClass() StaticClassStub()
