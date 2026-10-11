@@ -249,9 +249,9 @@ void ASpsClient::ProcessSpawns()
 	for (int32 i = PendingSpawns.Num() - 1; i >= 0; i--)
 	{
 		const FPendingSpawn& S = PendingSpawns[i]; const FSpsModelData* M = FindModel(S.Model); if (!M) { RequestModel(S.Model); continue; }
-		if (S.Kind == TEXT("car")) { ASpsCar* C = GetWorld()->SpawnActor<ASpsCar>(FVector(0, 0, -1e6), FRotator::ZeroRotator); if (C) { C->ServerId = S.Id; C->Init(*M, S.Plate); Cars.Add(S.Id, C); } }
-		else if (S.Kind == TEXT("ped")) { ASpsHuman* H = GetWorld()->SpawnActor<ASpsHuman>(FVector(0, 0, -1e6), FRotator::ZeroRotator); if (H) { H->ServerId = S.Id; H->Init(*M); Peds.Add(S.Id, H); } }
-		else if (S.Kind == TEXT("actor")) { ASpsHuman* H = GetWorld()->SpawnActor<ASpsHuman>(FVector(0, 0, -1e6), FRotator::ZeroRotator); if (H) { H->ServerId = S.Id; H->Init(*M); Actors.Add(S.Id, H); } }
+		if (S.Kind == TEXT("car")) { ASpsCar* C = GetWorld()->SpawnActor<ASpsCar>(FVector(0, 0, -500000.0), FRotator::ZeroRotator); if (C) { C->ServerId = S.Id; C->Init(*M, S.Plate); Cars.Add(S.Id, C); } }
+		else if (S.Kind == TEXT("ped")) { ASpsHuman* H = GetWorld()->SpawnActor<ASpsHuman>(FVector(0, 0, -500000.0), FRotator::ZeroRotator); if (H) { H->ServerId = S.Id; H->Init(*M); Peds.Add(S.Id, H); } }
+		else if (S.Kind == TEXT("actor")) { ASpsHuman* H = GetWorld()->SpawnActor<ASpsHuman>(FVector(0, 0, -500000.0), FRotator::ZeroRotator); if (H) { H->ServerId = S.Id; H->Init(*M); Actors.Add(S.Id, H); } }
 		PendingSpawns.RemoveAt(i);
 	}
 }

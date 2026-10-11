@@ -2,6 +2,16 @@
 
 Stand: Ende Phase 6 der Umsetzung. **Kein Unity war verfügbar** – siehe „Was heisst geprüft?“.
 
+## Architektur seit dem Unreal-Umstieg
+Spiellogik im C#-Server (`Tools/SwissServer`, hostet `Core`), Darstellung im Unreal-Client (`Unreal/SwissPoliceSim`, C++), Oberfläche als Web-UI (HTML/JS, im Browser oder als Overlay im Unreal-Fenster). Der frühere Unity-Client bleibt als Referenz im Repo.
+
+| Baustein | Stand | Nachweis |
+|---|---|---|
+| Server (Kacheln, Verkehr, Fussgänger, Kontakte, Einsätze, Computer, Navigation, Speichern) | ✔ | `Tools/SwissClientTest`: ~30 Prüfungen grün |
+| Web-UI (Menü, HUD, Fenster, Karte, Sprache) | ✔ | Headless-Browser-Screenshots `docs/screenshots/10–12` |
+| Unreal-C++-Client | geschrieben, **nicht kompiliert/gestartet** | Stub-Check `Tools/UeCheck/check.sh` |
+| Unreal-Materialskript `sps_setup.py` | geschrieben, **nicht ausgeführt** | – |
+
 ## Phasen und Nachweise
 
 | Phase | Inhalt | Nachweis |

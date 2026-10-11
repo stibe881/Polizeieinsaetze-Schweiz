@@ -26,3 +26,9 @@ Tools/SwissServer/bin/
 Tools/SwissServer/obj/
 Tools/SwissClientTest/bin/
 Tools/SwissClientTest/obj/
+Unreal/SwissPoliceSim/Binaries/
+Unreal/SwissPoliceSim/Intermediate/
+Unreal/SwissPoliceSim/Saved/
+Unreal/SwissPoliceSim/DerivedDataCache/
+Unreal/SwissPoliceSim/.vs/
+Unreal/SwissPoliceSim/*.sln
