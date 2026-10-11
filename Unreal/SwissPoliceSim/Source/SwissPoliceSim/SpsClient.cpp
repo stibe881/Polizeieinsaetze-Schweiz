@@ -69,13 +69,15 @@ void ASpsClient::Connect()
 	Socket->OnConnected().AddUObject(this, &ASpsClient::OnConnected);
 	Socket->OnMessage().AddUObject(this, &ASpsClient::OnText);
 	Socket->OnBinaryMessage().AddUObject(this, &ASpsClient::OnBinary);
-	Socket->OnClosed().AddLambda([this](int32, const FString&, bool) { bConnected = false; ReconnectIn = 2.f; });
-	Socket->OnConnectionError().AddLambda([this](const FString&) { bConnected = false; ReconnectIn = 2.f; });
+	Socket->OnClosed().AddLambda([this](int32 Code, const FString& Why, bool) { UE_LOG(LogTemp, Warning, TEXT("[SPS] Verbindung geschlossen (%d): %s"), Code, *Why); bConnected = false; ReconnectIn = 2.f; });
+	Socket->OnConnectionError().AddLambda([this](const FString& Err) { UE_LOG(LogTemp, Warning, TEXT("[SPS] Verbindungsfehler zu %s: %s"), *ServerUrl, *Err); bConnected = false; ReconnectIn = 2.f; });
+	UE_LOG(LogTemp, Warning, TEXT("[SPS] Verbinde zu %s"), *ServerUrl);
 	Socket->Connect();
 }
 
 void ASpsClient::OnConnected()
 {
+	UE_LOG(LogTemp, Warning, TEXT("[SPS] Verbunden mit dem Server"));
 	bConnected = true; Requested.Reset();
 	SendText(TEXT("{\"t\":\"hello\",\"role\":\"game\",\"name\":\"unreal\"}"));
 	RequestModel(GOfficerModel); RequestModel(GPoliceCarModel);

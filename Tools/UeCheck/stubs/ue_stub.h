@@ -308,8 +308,15 @@ struct IWebSocket
 struct FWebSocketsModule { TSharedRef<IWebSocket> CreateWebSocket(const FString&) { return MakeShared<IWebSocket>(); } };
 // slate
 struct SWidget {}; struct SWeakWidget; struct SWebBrowser : SWidget {};
-template <class W> struct SArgs { SArgs& InitialURL(const FString&) { return *this; } SArgs& ShowControls(bool) { return *this; } SArgs& ShowAddressBar(bool) { return *this; } SArgs& ShowErrorMessage(bool) { return *this; } SArgs& SupportsTransparency(bool) { return *this; } SArgs& BackgroundColor(FColor) { return *this; } SArgs& PossiblyNullContent(TSharedPtr<SWidget>) { return *this; } };
+template <class W> struct SArgs { SArgs& InitialURL(const FString&) { return *this; } SArgs& ShowControls(bool) { return *this; } SArgs& ShowAddressBar(bool) { return *this; } SArgs& ShowErrorMessage(bool) { return *this; } SArgs& SupportsTransparency(bool) { return *this; } SArgs& BackgroundColor(FColor) { return *this; } template <class D> SArgs& OnLoadCompleted(D) { return *this; } template <class D> SArgs& OnLoadError(D) { return *this; } SArgs& PossiblyNullContent(TSharedPtr<SWidget>) { return *this; } };
 struct SWeakWidget : SWidget {};
 #define SAssignNew(Var, W) MakeSlate<W>(Var) = SArgs<W>()
 template <class W> struct SlateAssign { TSharedPtr<W>& V; SlateAssign(TSharedPtr<W>& v) : V(v) { V = MakeShared<W>(); } SArgs<W> operator=(SArgs<W> a) { return a; } };
 template <class W> SlateAssign<W> MakeSlate(TSharedPtr<W>& v) { return SlateAssign<W>(v); }
+
+struct FSimpleDelegate { template <class F> static FSimpleDelegate CreateLambda(F) { return {}; } };
+enum ELogVerbosityStub { Warning };
+struct FLogCategoryStub {}; static FLogCategoryStub LogTemp;
+#ifndef UE_LOG
+#define UE_LOG(Cat, Verb, Fmt, ...) ((void)0)
+#endif

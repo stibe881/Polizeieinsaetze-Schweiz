@@ -29,7 +29,10 @@ void ASpsController::BeginPlay()
 	FString Url = C && !C->UiUrl.IsEmpty() ? C->UiUrl : TEXT("http://127.0.0.1:47800/?embedded=1");
 	if (GEngine && GEngine->GameViewport)
 	{
-		SAssignNew(Browser, SWebBrowser).InitialURL(Url).ShowControls(false).ShowAddressBar(false).ShowErrorMessage(true).SupportsTransparency(true).BackgroundColor(FColor(0, 0, 0, 0));
+		UE_LOG(LogTemp, Warning, TEXT("[SPS] Oeffne UI-Overlay: %s"), *Url);
+		SAssignNew(Browser, SWebBrowser).InitialURL(Url).ShowControls(false).ShowAddressBar(false).ShowErrorMessage(true).SupportsTransparency(true).BackgroundColor(FColor(0, 0, 0, 0))
+			.OnLoadCompleted(FSimpleDelegate::CreateLambda([]() { UE_LOG(LogTemp, Warning, TEXT("[SPS] UI-Overlay geladen")); }))
+			.OnLoadError(FSimpleDelegate::CreateLambda([]() { UE_LOG(LogTemp, Warning, TEXT("[SPS] UI-Overlay Ladefehler (Server nicht erreichbar?)")); }));
 		SAssignNew(BrowserHolder, SWeakWidget).PossiblyNullContent(Browser.ToSharedRef());
 		GEngine->GameViewport->AddViewportWidgetContent(BrowserHolder.ToSharedRef(), 100);
 	}
