@@ -52,6 +52,14 @@ namespace SwissPoliceSim.Core.Meshing
             return p;
         }
 
+        /// <summary>Half width of the body at z including the rounded plan-view corners at nose and tail.</summary>
+        static float PlanW(Profile pr, float z, float zFront, float zRear)
+        {
+            float W = Eval(pr.Half, z);
+            float uF = Math.Max(0f, (z - (zFront - 0.34f)) / 0.34f), uR = Math.Max(0f, ((zRear + 0.30f) - z) / 0.30f);
+            return W * (float)Math.Sqrt(Math.Max(0.2f, 1f - 0.30f * uF * uF * uF)) * (float)Math.Sqrt(Math.Max(0.2f, 1f - 0.25f * uR * uR));
+        }
+
         static float Smooth(float t) { t = t < 0 ? 0 : (t > 1 ? 1 : t); return t * t * (3 - 2 * t); }
 
         static Profile ForRaw(BodyKind k)
@@ -133,6 +141,7 @@ namespace SwissPoliceSim.Core.Meshing
             for (float z = zRear; z <= zFront + 1e-4f; z += 0.1f) zs.Add((float)Math.Round(z, 3));
             foreach (var w in new[] { pr.SideWin0, pr.SideWin1, pr.SideWin2 }) { zs.Add(w[0]); zs.Add(w[1]); }
             for (float z = zRear + 0.04f; z < zRear + 0.5f; z += 0.04f) zs.Add((float)Math.Round(z, 3));
+            for (float z = zFront - 0.34f; z < zFront; z += 0.03f) zs.Add((float)Math.Round(z, 3));      // dense stations around the nose so the plan-view corners can be round
             foreach (var z in new[] { pr.RoofFront, pr.WindShieldBase, pr.RoofRear, pr.RearGlassEnd, zFront, zRear })
                 if (z > zRear && z < zFront) zs.Add(z);
             foreach (var wz in new[] { fa, ra })
@@ -189,7 +198,8 @@ namespace SwissPoliceSim.Core.Meshing
         static List<RP> HalfRing(Profile pr, float z, float fa, float ra, float archR, byte[] body, byte[] stripe, float zFront, float zRear)
         {
             float T = Eval(pr.Top, z), W = Eval(pr.Half, z);
-            float yb = pr.Clearance + 0.24f * Smooth((z - (zFront - 0.42f)) / 0.42f) + 0.17f * Smooth(((zRear + 0.36f) - z) / 0.36f);   // bumper sweeps up towards the tips (approach / departure angle)
+            W = PlanW(pr, z, zFront, zRear);
+            float yb = pr.Clearance + 0.15f * Smooth((z - (zFront - 0.42f)) / 0.42f) + 0.17f * Smooth(((zRear + 0.36f) - z) / 0.36f);   // bumper sweeps up towards the tips (approach / departure angle)
             // arch lift for the side bottom edge
             float lift = 0;
             foreach (var wz in new[] { fa, ra })
@@ -380,9 +390,9 @@ namespace SwissPoliceSim.Core.Meshing
         // ------------------------------------------------------------------ exterior details
         static void Details(MeshData m, BodyKind kind, Profile pr, CarModel model, CarLivery liv, float fa, float ra, float tx, float zf, float zr)
         {
-            float halfF = Eval(pr.Half, zf - 0.02f), halfR = Eval(pr.Half, zr + 0.02f);
+            float halfF = PlanW(pr, zf - 0.02f, zf, zr), halfR = PlanW(pr, zr + 0.02f, zf, zr);
             // ---- front: grille, intake, headlamp clusters, fog lamps, plate
-            float tipHalf = Eval(pr.Half, zf), innerHalf = Eval(pr.Half, zf - 0.32f);
+            float tipHalf = PlanW(pr, zf, zf, zr), innerHalf = PlanW(pr, zf - 0.32f, zf, zr);
             float taper = (float)Math.Atan2(innerHalf - tipHalf, 0.32f);
             MeshUtil.Box(m, SubTrim, 0, 0.665f, zf + 0.001f, 0.50f, 0.13f, 0.03f, 16, 16, 18);                  // upper grille
             MeshUtil.Box(m, SubChrome, 0, 0.735f, zf + 0.006f, 0.52f, 0.012f, 0.03f, 150, 152, 156);
@@ -396,7 +406,7 @@ namespace SwissPoliceSim.Core.Meshing
                 MeshUtil.Box(m, SubTrim, s * 0.46f, 0.700f, zf + 0.001f, 0.34f, 0.115f, 0.03f, 22, 22, 26);
                 MeshUtil.Box(m, SubLampFront, s * 0.46f, 0.704f, zf + 0.009f, 0.30f, 0.085f, 0.02f, 238, 240, 248);
                 MeshUtil.Box(m, SubLampFront, s * 0.46f, 0.648f, zf + 0.010f, 0.28f, 0.012f, 0.02f, 250, 252, 255);
-                float x1 = tipHalf - 0.02f, z1 = zf, z2 = zf - 0.30f, x2 = Eval(pr.Half, z2) - 0.03f;
+                float x1 = tipHalf - 0.02f, z1 = zf, z2 = zf - 0.30f, x2 = PlanW(pr, z2, zf, zr) - 0.03f;
                 float cx = s * (x1 + x2) * 0.5f, cz = (z1 + z2) * 0.5f, len = (float)Math.Sqrt((x2 - x1) * (x2 - x1) + (z2 - z1) * (z2 - z1));
                 float yaw = s * (float)Math.Atan2(-(z2 - z1), x2 - x1);
                 float nx = (z2 - z1) * s, nz = -(x2 - x1);   // outward normal offset direction (approx.)
