@@ -25,7 +25,20 @@ namespace SwissServer.Net
         public readonly Dictionary<TileId, (double e, double n)> DetailAt = new Dictionary<TileId, (double, double)>(); public readonly HashSet<int> Cars = new HashSet<int>(), Peds = new HashSet<int>(); public int PropsVersion = -1, ActorsVersion = -1; public bool Closed;
         public ClientConn(int id, WebSocket ws) { Id = id; Ws = ws; }
         public void SendText(string json) { if (!Closed) _out.Writer.TryWrite((Encoding.UTF8.GetBytes(json), WebSocketMessageType.Text)); }
-        public void SendBinary(byte[] data) { if (!Closed) _out.Writer.TryWrite((data, WebSocketMessageType.Binary)); }
+        readonly object _chunkLock = new object();
+        public void SendBinary(byte[] data)
+        {
+            if (Closed) return;
+            if (data.Length <= Msg.ChunkThreshold) { _out.Writer.TryWrite((data, WebSocketMessageType.Binary)); return; }
+            int count = (data.Length + Msg.ChunkSize - 1) / Msg.ChunkSize;
+            lock (_chunkLock)   // die Chunks eines Frames duerfen sich nicht mit denen eines anderen mischen
+                for (int i = 0; i < count; i++)
+                {
+                    int off = i * Msg.ChunkSize, len = Math.Min(Msg.ChunkSize, data.Length - off); var chunk = new byte[9 + len];
+                    chunk[0] = Msg.Chunk; BitConverter.GetBytes(i).CopyTo(chunk, 1); BitConverter.GetBytes(count).CopyTo(chunk, 5); Buffer.BlockCopy(data, off, chunk, 9, len);
+                    _out.Writer.TryWrite((chunk, WebSocketMessageType.Binary));
+                }
+        }
         public async Task PumpAsync(CancellationToken ct)
         {
             try { await foreach (var (data, type) in _out.Reader.ReadAllAsync(ct)) { if (Ws.State != WebSocketState.Open) break; await Ws.SendAsync(data, type, true, ct); } } catch (Exception) { }

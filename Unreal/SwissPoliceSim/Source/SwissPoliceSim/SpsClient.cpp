@@ -195,6 +195,16 @@ void ASpsClient::HandleText(const TSharedPtr<FJsonObject>& J)
 void ASpsClient::HandleBinary(const TArray<uint8>& Data)
 {
 	if (Data.Num() < 2) return;
+	if (Data[0] == SpsMsg::Chunk)
+	{
+		// grosse Frames kommen in Chunks: u8 6, i32 index, i32 count, Nutzdaten (siehe Msg.Chunk im Server)
+		if (Data.Num() < 9) return;
+		int32 Index = 0, Count = 0; FMemory::Memcpy(&Index, Data.GetData() + 1, 4); FMemory::Memcpy(&Count, Data.GetData() + 5, 4);
+		if (Index == 0) ChunkBuffer.Reset();
+		ChunkBuffer.Append(Data.GetData() + 9, Data.Num() - 9);
+		if (Index == Count - 1) { TArray<uint8> Whole = MoveTemp(ChunkBuffer); ChunkBuffer.Reset(); HandleBinary(Whole); }
+		return;
+	}
 	switch (Data[0])
 	{
 	case SpsMsg::Tile:

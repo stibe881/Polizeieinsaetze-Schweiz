@@ -13,6 +13,7 @@ Clients melden sich mit `{"t":"hello","role":"game|ui|sandbox"}` an: `game` = Un
 |---|---|
 | 1 Tile | `i32 x, i32 y, u8 quality (1 nah, 2 mittel, 3 fern), u8 n`, dann n × (`u8 kind, Mesh`), dann `i32 trees`, je Baum `f32 e, n (lokal), ground, height, radius, u8 kind, variant, bucket`. kind: 0 Terrain, 1 Strassen, 2 Gebäude (einfach), 3 Gebäude (Detail, nur im Umkreis ~230 m), 4 Wasser, 5 Mobiliar (mit uv2), 6 Schiene |
 | 2 Snapshot (10 Hz) | `f64 time`; `i32 n` × Auto (`i32 id, f64 e, n, f32 h, yaw, speed(m/s), u16 flags`); `i32 n` × Fussgänger (`i32 id, f64 e, n, f32 h, yaw, u8 state, f32 speed`); `i32 n` × Szenenperson (`i32 id, f64 e, n, f32 h, yaw, u8 pose, u8 flags`) |
+| 6 Chunk | `i32 index, i32 count, Nutzdaten`: Frames > 1,5 MB (Detail-Tiles) kommen in 1-MB-Chunks; zusammengesetzt ergibt sich ein normaler Frame |
 | 3 TileDrop | `i32 x, i32 y` (x = INT_MIN: alle verwerfen) |
 | 5 Model | `str key, str metaJson, u8 n, Mesh…` — Schlüssel `car:<kind>:<farbe>`, `car:police`, `car:ems`, `car:tow`, `human:ped:<fcE>:<hemd>:<hose>:<haut>:<haar>:<cm>:<seed>`, `human:officer:m\|f:<hiVis>`, `tree:<kind>:<variant>:<lod>:<bucket>` |
 

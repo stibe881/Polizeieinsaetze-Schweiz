@@ -4,7 +4,7 @@
 
 /** Wire structures and parsers for the binary frames of the SwissServer protocol (see docs/PROTOCOL.md). */
 
-namespace SpsMsg { enum : uint8 { Tile = 1, Snapshot = 2, TileDrop = 3, Model = 5 }; }
+namespace SpsMsg { enum : uint8 { Tile = 1, Snapshot = 2, TileDrop = 3, Model = 5, Chunk = 6 }; }
 namespace SpsTileKind { enum : uint8 { Terrain = 0, Roads = 1, BuildingsFar = 2, BuildingsDetail = 3, Water = 4, Furniture = 5, Rail = 6 }; }
 
 /** One mesh already converted to Unreal axes and centimetres (X = north, Y = east, Z = up). */

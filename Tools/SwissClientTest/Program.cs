@@ -22,10 +22,16 @@ static class P
     static async Task Receive()
     {
         var buf = new byte[1 << 20];
+        var chunkBuf = new MemoryStream();
         while (ws.State == WebSocketState.Open)
         {
             using var ms = new MemoryStream(); WebSocketReceiveResult r; do { r = await ws.ReceiveAsync(buf, CancellationToken.None); if (r.MessageType == WebSocketMessageType.Close) return; ms.Write(buf, 0, r.Count); } while (!r.EndOfMessage);
             var data = ms.ToArray();
+            if (r.MessageType == WebSocketMessageType.Binary && data.Length > 9 && data[0] == 6)   // Chunk (siehe Msg.Chunk): zusammensetzen
+            {
+                int idx = BitConverter.ToInt32(data, 1), cnt = BitConverter.ToInt32(data, 5); if (idx == 0) chunkBuf.SetLength(0); chunkBuf.Write(data, 9, data.Length - 9);
+                if (idx != cnt - 1) continue; data = chunkBuf.ToArray(); chunkBuf.SetLength(0);
+            }
             if (r.MessageType == WebSocketMessageType.Text) { using var d = JsonDocument.Parse(data); lock (L) { Texts.Add(d.RootElement.Clone()); if (Texts.Count > 5000) Texts.RemoveRange(0, 1000); } }
             else
             {

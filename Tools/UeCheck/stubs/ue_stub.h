@@ -69,7 +69,7 @@ template <class T> struct TArray
 	std::vector<T> V;
 	int32 Num() const { return (int32)V.size(); }
 	T& Add(const T& v) { V.push_back(v); return V.back(); } T& Add(T&& v) { V.push_back(std::move(v)); return V.back(); }
-	void Append(std::initializer_list<T> l) { for (auto& x : l) V.push_back(x); } void Append(const TArray<T>& o) { for (auto& x : o.V) V.push_back(x); }
+	void Append(const T* p, int n) { for (int i = 0; i < n; i++) V.push_back(p[i]); } void Append(std::initializer_list<T> l) { for (auto& x : l) V.push_back(x); } void Append(const TArray<T>& o) { for (auto& x : o.V) V.push_back(x); }
 	void AddUninitialized(int32 n) { V.resize(V.size() + n); }
 	void SetNum(int32 n) { V.resize(n); } void SetNumUninitialized(int32 n) { V.resize(n); }
 	void Reset() { V.clear(); }

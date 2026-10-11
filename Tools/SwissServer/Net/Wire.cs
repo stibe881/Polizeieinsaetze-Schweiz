@@ -9,7 +9,9 @@ namespace SwissServer.Net
     /// <summary>Binary message ids (first byte of a binary WebSocket frame). Text frames are JSON objects with a "t" field.</summary>
     public static class Msg
     {
-        public const byte Tile = 1, Snapshot = 2, TileDrop = 3, Model = 5;
+        public const byte Tile = 1, Snapshot = 2, TileDrop = 3, Model = 5, Chunk = 6;
+        /// <summary>Frames ab dieser Groesse werden in Chunks zu je ChunkSize aufgeteilt (Typ 6: u8 6, i32 index, i32 count, Nutzdaten). Grosse Einzelframes (Detail-Tiles ~40 MB) kommen im Unreal-Websocket-Client nicht an.</summary>
+        public const int ChunkThreshold = 1_500_000, ChunkSize = 1_000_000;
     }
 
     /// <summary>Mesh kinds inside a Tile message.</summary>
