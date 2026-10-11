@@ -19,8 +19,13 @@ public:
 	int32 TileX = 0, TileY = 0;
 	uint8 Quality = 3;
 
-	/** Replaces all meshes. OriginE/N are the LV95 coordinates that map to the Unreal origin. */
+	/** Replaces all meshes at once. OriginE/N are the LV95 coordinates that map to the Unreal origin. */
 	void Build(const FSpsTileData& Data, double OriginE, double OriginN);
+
+	/** Staged variant: BeginBuild clears and positions the tile, BuildStep creates ONE mesh section per call (returns true when finished) so large tiles do not stall a frame. */
+	void BeginBuild(FSpsTileData&& Data, double OriginE, double OriginN);
+	bool BuildStep();
+	bool IsBuilding() const { return bBuilding; }
 
 	/** Adds/replaces the merged tree meshes from loaded tree models (index = Kind*... resolved by the caller). */
 	void SetTrees(const FSpsMeshData& Merged);
@@ -29,6 +34,8 @@ public:
 	void Clear();
 
 private:
+	FSpsTileData Staged; bool bBuilding = false; int32 StageMesh = 0, StageSection = 0; UProceduralMeshComponent* StageComponent = nullptr;
+	void StartMesh(const FSpsTileMesh& TM);
 	UPROPERTY() TArray<TObjectPtr<UProceduralMeshComponent>> Parts;
 	UPROPERTY() TObjectPtr<UProceduralMeshComponent> TreePart;
 	UProceduralMeshComponent* NewPart(const FString& Name, bool bShadow, bool bCollision);

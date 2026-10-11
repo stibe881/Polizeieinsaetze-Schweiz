@@ -18,6 +18,7 @@
 #include "SpsHuman.h"
 #include "SpsPlayer.h"
 #include "SpsAtmosphere.h"
+#include "SpsWeather.h"
 
 namespace
 {
@@ -48,6 +49,7 @@ void ASpsClient::BeginPlay()
 	Super::BeginPlay();
 	FString Override; if (FParse::Value(FCommandLine::Get(), TEXT("-SpsServer="), Override)) ServerUrl = Override;
 	Atmosphere = GetWorld()->SpawnActor<ASpsAtmosphere>(FVector::ZeroVector, FRotator::ZeroRotator);
+	Weather = GetWorld()->SpawnActor<ASpsWeather>(FVector::ZeroVector, FRotator::ZeroRotator);
 	// a flying "hover" pawn gives a sky view behind the menu until the game starts
 	PlayerFoot = GetWorld()->SpawnActor<ASpsPlayerFoot>(FVector(0, 0, 30000.f), FRotator::ZeroRotator);
 	if (PlayerFoot) { PlayerFoot->GetCharacterMovement()->SetMovementMode(MOVE_Flying); if (APlayerController* PC = GetWorld()->GetFirstPlayerController()) PC->Possess(PlayerFoot); }
@@ -107,6 +109,7 @@ void ASpsClient::OnBinary(const void* Data, SIZE_T Size, bool bLast)
 void ASpsClient::OnPlayerCrash(AActor* Other, float ImpactMs)
 {
 	if (const ASpsCar* C = Cast<ASpsCar>(Other)) { if (C->ServerId > 0) SendText(FString::Printf(TEXT("{\"t\":\"collision\",\"vehicleId\":%d,\"rel\":%.2f}"), C->ServerId, ImpactMs)); }
+	else if (ASpsHuman* H = Cast<ASpsHuman>(Other)) { if (H->ServerId > 0 && ImpactMs > 1.5f) { H->Fall(); SendText(FString::Printf(TEXT("{\"t\":\"pedHit\",\"id\":%d,\"rel\":%.2f,\"actor\":%s}"), H->ServerId, ImpactMs, Actors.Contains(H->ServerId) ? TEXT("true") : TEXT("false"))); } }
 }
 
 // ------------------------------------------------------------------ message handling
@@ -124,7 +127,10 @@ void ASpsClient::HandleText(const TSharedPtr<FJsonObject>& J)
 	{
 		const TSharedPtr<FJsonObject>* Sun = nullptr; const TSharedPtr<FJsonObject>* Wx = nullptr; const TSharedPtr<FJsonObject>* Rad = nullptr;
 		if (Atmosphere && J->TryGetObjectField(TEXT("sun"), Sun) && J->TryGetObjectField(TEXT("weather"), Wx))
+		{
+			if (Weather) Weather->SetIntensity(static_cast<float>(Num(*Wx, TEXT("rain"))) / 8.f, static_cast<float>(Num(*Wx, TEXT("snow"))) / 5.f);
 			Atmosphere->Apply(static_cast<float>(Num(*Sun, TEXT("el"))), static_cast<float>(Num(*Sun, TEXT("az"))), static_cast<float>(Num(*Sun, TEXT("daylight"), 1.0)), static_cast<float>(Num(*Wx, TEXT("cloud"))), static_cast<float>(Num(*Wx, TEXT("vis"), 20000.0)), static_cast<float>(Num(*Wx, TEXT("rain"))));
+		}
 		if (J->TryGetObjectField(TEXT("radar"), Rad)) bRadarOn = Bool(*Rad, TEXT("on"));
 	}
 	else if (T == TEXT("spawn"))
@@ -183,13 +189,14 @@ void ASpsClient::HandleBinary(const TArray<uint8>& Data)
 void ASpsClient::DropTile(int32 X, int32 Y)
 {
 	const FIntPoint K(X, Y);
-	if (TObjectPtr<ASpsTile>* T = Tiles.Find(K)) { if (*T) (*T)->Destroy(); Tiles.Remove(K); }
+	if (TObjectPtr<ASpsTile>* T = Tiles.Find(K)) { if (*T == BuildingTile) BuildingTile = nullptr; if (*T) (*T)->Destroy(); Tiles.Remove(K); }
 	TileQueue.RemoveAll([X, Y](const FSpsTileData& D) { return D.X == X && D.Y == Y; });
 	PendingTrees.RemoveAll([K](const FPendingTrees& P) { return P.Tile == K; });
 }
 
 void ASpsClient::DropAllTiles()
 {
+	BuildingTile = nullptr;
 	for (auto& T : Tiles) { if (T.Value) T.Value->Destroy(); }
 	Tiles.Reset(); TileQueue.Reset(); PendingTrees.Reset();
 }
@@ -206,14 +213,20 @@ void ASpsClient::ClearEntities()
 void ASpsClient::ProcessTiles(double BudgetSeconds)
 {
 	const double Start = FPlatformTime::Seconds();
-	while (TileQueue.Num() > 0)
+	while (true)
 	{
+		if (BuildingTile)
+		{
+			if (BuildingTile->BuildStep()) BuildingTile = nullptr;
+			if (FPlatformTime::Seconds() - Start > BudgetSeconds) return;
+			continue;
+		}
+		if (TileQueue.Num() == 0) return;
 		FSpsTileData D = MoveTemp(TileQueue[0]); TileQueue.RemoveAt(0);
 		const FIntPoint K(D.X, D.Y); TObjectPtr<ASpsTile>* Found = Tiles.Find(K); ASpsTile* Tile = Found ? Found->Get() : nullptr;
 		if (!Tile) { Tile = GetWorld()->SpawnActor<ASpsTile>(FVector::ZeroVector, FRotator::ZeroRotator); Tiles.Add(K, Tile); }
-		Tile->Build(D, OriginE, OriginN);
-		if (D.Trees.Num() > 0) { PendingTrees.RemoveAll([K](const FPendingTrees& P) { return P.Tile == K; }); FPendingTrees P; P.Tile = K; P.Quality = D.Quality; P.Trees = MoveTemp(D.Trees); PendingTrees.Add(MoveTemp(P)); }
-		if (FPlatformTime::Seconds() - Start > BudgetSeconds) break;
+		if (D.Trees.Num() > 0) { PendingTrees.RemoveAll([K](const FPendingTrees& P) { return P.Tile == K; }); FPendingTrees P; P.Tile = K; P.Quality = D.Quality; P.Trees = D.Trees; PendingTrees.Add(MoveTemp(P)); }
+		Tile->BeginBuild(MoveTemp(D), OriginE, OriginN); BuildingTile = Tile;
 	}
 }
 
@@ -302,6 +315,26 @@ void ASpsClient::TryPlacePlayer()
 	if (APlayerController* PC = GetWorld()->GetFirstPlayerController()) { if (bStartInVehicle && PlayerCar) { PlayerCar->bOccupied = true; PC->Possess(PlayerCar); } else if (PlayerFoot) PC->Possess(PlayerFoot); }
 }
 
+void ASpsClient::MaybeRebase()
+{
+	if (bPlacePending || !bStarted) return;
+	const AActor* Ref = (PlayerCar && PlayerCar->bOccupied) ? static_cast<AActor*>(PlayerCar) : static_cast<AActor*>(PlayerFoot);
+	if (!Ref) return;
+	const FVector P = Ref->GetActorLocation();
+	if (FMath::Abs(P.X) < 500000.0 && FMath::Abs(P.Y) < 500000.0) return;   // 5 km from the origin: single-precision physics and rendering start to jitter
+	const double Sx = FMath::RoundToDouble(P.X / 100000.0) * 100000.0, Sy = FMath::RoundToDouble(P.Y / 100000.0) * 100000.0;   // snap to whole kilometres
+	const FVector Off(-Sx, -Sy, 0.0);
+	OriginN += Sx / 100.0; OriginE += Sy / 100.0;
+	for (auto& T : Tiles) { if (T.Value) T.Value->AddActorWorldOffset(Off, false, nullptr, ETeleportType::TeleportPhysics); }
+	for (auto& C : Cars) { if (C.Value) { C.Value->AddActorWorldOffset(Off, false, nullptr, ETeleportType::TeleportPhysics); C.Value->ShiftTarget(Off); } }
+	for (auto& C : Props) { if (C.Value) C.Value->AddActorWorldOffset(Off, false, nullptr, ETeleportType::TeleportPhysics); }
+	for (auto& H : Peds) { if (H.Value) { H.Value->AddActorWorldOffset(Off, false, nullptr, ETeleportType::TeleportPhysics); H.Value->ShiftTarget(Off); } }
+	for (auto& H : Actors) { if (H.Value) { H.Value->AddActorWorldOffset(Off, false, nullptr, ETeleportType::TeleportPhysics); H.Value->ShiftTarget(Off); } }
+	for (TActorIterator<ASpsProp> It(GetWorld()); It; ++It) It->AddActorWorldOffset(Off, false, nullptr, ETeleportType::TeleportPhysics);
+	if (PlayerCar) PlayerCar->AddActorWorldOffset(Off, false, nullptr, ETeleportType::TeleportPhysics);
+	if (PlayerFoot) PlayerFoot->AddActorWorldOffset(Off, false, nullptr, ETeleportType::TeleportPhysics);
+}
+
 void ASpsClient::SendPose()
 {
 	if (!bStarted || bPlacePending) return;
@@ -321,7 +354,7 @@ void ASpsClient::Tick(float Dt)
 	for (const FString& S : Texts) { TSharedPtr<FJsonObject> J; TSharedRef<TJsonReader<>> R = TJsonReaderFactory<>::Create(S); if (FJsonSerializer::Deserialize(R, J) && J.IsValid()) HandleText(J); }
 	TArray<TArray<uint8>> Bins = MoveTemp(BinaryQueue); BinaryQueue.Reset();
 	for (const TArray<uint8>& B : Bins) HandleBinary(B);
-	ProcessTiles(0.006); ProcessTrees(); ProcessSpawns(); ProcessProps(); ApplySnapshot(); TryPlacePlayer();
+	MaybeRebase(); ProcessTiles(0.006); ProcessTrees(); ProcessSpawns(); ProcessProps(); ApplySnapshot(); TryPlacePlayer();
 	PoseTimer += Dt; if (PoseTimer >= 0.1f) { PoseTimer = 0.f; SendPose(); }
 	if (ReconnectIn >= 0.f) { ReconnectIn -= Dt; if (ReconnectIn < 0.f) { ReconnectIn = -1.f; if (Socket.IsValid()) { Socket->OnConnected().RemoveAll(this); Socket->OnMessage().RemoveAll(this); Socket->OnBinaryMessage().RemoveAll(this); Socket.Reset(); } Connect(); } }
 }

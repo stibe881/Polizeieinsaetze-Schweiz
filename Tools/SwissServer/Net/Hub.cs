@@ -116,6 +116,7 @@ namespace SwissServer.Net
                 case "report": g.SubmitReport(m.TryGetProperty("atFault", out var af) ? af.GetInt32() : -1, m.TryGetProperty("injured", out var ij) && ij.GetBoolean(), m.TryGetProperty("amb", out var am) && am.GetBoolean(), m.TryGetProperty("tow", out var to) && to.GetBoolean(), Str(m, "narrative")); break;
                 case "pursuit": g.PursuitAction(m.GetProperty("op").GetString()); break;
                 case "collision": g.PlayerCollision(m.GetProperty("vehicleId").GetInt32(), (float)m.GetProperty("rel").GetDouble()); break;
+                case "pedHit": g.PedHit(m.GetProperty("id").GetInt32(), (float)m.GetProperty("rel").GetDouble(), m.TryGetProperty("actor", out var ac) && ac.ValueKind == JsonValueKind.True); break;
                 case "career": c.SendText(JsonSerializer.Serialize(Snapshotter.Career(g), Json)); break;
                 case "notebook": c.SendText(JsonSerializer.Serialize(new { t = "notebook", cases = g.Cases, log = g.NoteLog.TakeLast(80).Select(x => x.text).ToArray() }, Json)); break;
                 case "skip": if (g.Career != null && g.Career.Suspended) { g.Clock.ElapsedGameSeconds = g.Career.SuspendedUntil + 1; g.Career.Suspended = false; g.Career.ComplaintsOpen = 0; g.Career.InvestigationsOpen = Math.Max(0, g.Career.InvestigationsOpen - 1); g.Warn("Die Suspendierung ist abgelaufen. Sie sind wieder im Dienst."); } break;

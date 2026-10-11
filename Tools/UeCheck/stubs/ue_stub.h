@@ -37,6 +37,7 @@ struct FString
 	const TCHAR* operator*() const { return S.c_str(); }
 	bool IsEmpty() const { return S.empty(); }
 	bool Contains(const FString& o) const { return S.find(o.S) != std::wstring::npos; }
+	int32 Len() const { return (int32)S.size(); } template <class A> void ParseIntoArray(A&, const TCHAR*, bool) const {}
 	bool StartsWith(const FString& o) const { return S.rfind(o.S, 0) == 0; }
 	FString& operator+=(const FString& o) { S += o.S; return *this; }
 	FString& operator+=(const wchar_t* o) { S += o; return *this; }
@@ -148,6 +149,7 @@ struct FMath
 	static float FInterpTo(float c, float t, float dt, float s) { return c + (t - c) * std::min(1.f, dt * s); }
 	static FVector VInterpTo(const FVector& c, const FVector& t, float dt, float s) { return c + (t - c) * std::min(1.f, dt * s); }
 	static double FloorToDouble(double v) { return std::floor(v); }
+	static float FRandRange(float a, float b) { return a; } static double RoundToDouble(double v) { return std::round(v); }
 	static float Sqrt(float v) { return std::sqrt(v); }
 };
 
@@ -177,7 +179,7 @@ struct UMaterialInstanceDynamic : UMaterialInterface { static UMaterialInstanceD
 struct USceneComponent : UObject
 {
 	void SetupAttachment(USceneComponent*, FName = FName()) {} void SetRelativeLocation(const FVector&) {} void SetRelativeRotation(const FRotator&) {} void SetWorldRotation(const FRotator&) {}
-	void RegisterComponent() {} void DestroyComponent() {} void SetMobility(EComponentMobility) {}
+	void RegisterComponent() {} void DestroyComponent() {} void SetMobility(EComponentMobility) {} void SetVisibility(bool, bool = false) {} void SetRelativeScale3D(const FVector&) {}
 };
 struct FProcMeshTangent {};
 template <class T> struct StaticClassHolder {};
@@ -185,11 +187,19 @@ struct UProceduralMeshComponent : USceneComponent
 {
 	bool bUseAsyncCooking = false, bUseComplexAsSimpleCollision = false;
 	void CreateMeshSection(int32, const TArray<FVector>&, const TArray<int32>&, const TArray<FVector>&, const TArray<FVector2D>&, const TArray<FColor>&, const TArray<FProcMeshTangent>&, bool) {}
+	void CreateMeshSection(int32, const TArray<FVector>&, const TArray<int32>&, const TArray<FVector>&, const TArray<FVector2D>&, const TArray<FVector2D>&, const TArray<FVector2D>&, const TArray<FVector2D>&, const TArray<FColor>&, const TArray<FProcMeshTangent>&, bool) {}
 	void SetMaterial(int32, UMaterialInterface*) {} UMaterialInterface* GetMaterial(int32) const { return nullptr; }
 	void SetCastShadow(bool) {} void SetCollisionEnabled(ECollisionEnabled) {} void SetCollisionProfileName(FName) {} void SetCanEverAffectNavigation(bool) {}
 };
+struct UStaticMesh : UObject {}; struct USkeletalMesh : UObject {}; struct UAnimationAsset : UObject {};
+enum class EAnimationMode { AnimationSingleNode };
+struct UStaticMeshComponent : USceneComponent { void SetStaticMesh(UStaticMesh*) {} void SetCollisionEnabled(ECollisionEnabled) {} void SetCastShadow(bool) {} void SetRelativeScale3D(const FVector&) {} };
+struct USkeletalMeshComponent : USceneComponent { void SetSkeletalMesh(USkeletalMesh*) {} void SetAnimationMode(EAnimationMode) {} void PlayAnimation(UAnimationAsset*, bool) {} void SetPlayRate(float) {} void SetCollisionEnabled(ECollisionEnabled) {} void SetRelativeScale3D(const FVector&) {} };
+enum class ETeleportType { None, TeleportPhysics };
+struct FTransform { FTransform() {} FTransform(const FRotator&, const FVector&, const FVector& = FVector()) {} };
+struct UInstancedStaticMeshComponent : USceneComponent { void SetStaticMesh(UStaticMesh*) {} void SetCastShadow(bool) {} void SetCollisionEnabled(ECollisionEnabled) {} int32 AddInstance(const FTransform&) { return 0; } int32 GetInstanceCount() const { return 0; } bool BatchUpdateInstancesTransforms(int32, const TArray<FTransform>&, bool, bool, bool) { return true; } void SetMaterial(int32, UMaterialInterface*) {} };
 struct UBoxComponent : USceneComponent { void SetBoxExtent(const FVector&) {} void SetCollisionProfileName(FName) {} void SetCanEverAffectNavigation(bool) {} };
-struct UCapsuleComponent : USceneComponent { void InitCapsuleSize(float, float) {} };
+struct UCapsuleComponent : USceneComponent { void InitCapsuleSize(float, float) {} void SetCollisionProfileName(FName) {} };
 enum EHorizTextAligment { EHTA_Center }; enum EVerticalTextAligment { EVRTA_TextCenter };
 struct UTextRenderComponent : USceneComponent { void SetText(const FText&) {} void SetWorldSize(float) {} void SetTextRenderColor(FColor) {} void SetHorizontalAlignment(EHorizTextAligment) {} void SetVerticalAlignment(EVerticalTextAligment) {} void SetCastShadow(bool) {} };
 struct UCameraComponent : USceneComponent { void SetFieldOfView(float) {} };
@@ -228,7 +238,7 @@ struct AActor : UObject
 	void SetRootComponent(USceneComponent* c) { RootComponent = c; } USceneComponent* GetRootComponent() const { return RootComponent; }
 	void SetActorLocation(const FVector&) {} void SetActorLocationAndRotation(const FVector&, const FRotator&) {} void SetActorRotation(const FRotator&) {}
 	FVector GetActorLocation() const { return FVector(); } FRotator GetActorRotation() const { return FRotator(); } FVector GetActorRightVector() const { return FVector(); } FVector GetVelocity() const { return FVector(); }
-	void Destroy() {} void AddActorWorldOffset(const FVector&, bool, FHitResult* = nullptr) {}
+	void Destroy() {} void AddActorWorldOffset(const FVector&, bool, FHitResult* = nullptr, ETeleportType = ETeleportType::None) {}
 	void SetActorHiddenInGame(bool) {} void SetActorEnableCollision(bool) {} void SetActorTickEnabled(bool) {}
 	template <class T> T* CreateDefaultSubobject(const wchar_t*) { return new T(); }
 };
@@ -258,14 +268,15 @@ struct UWorld
 	bool LineTraceSingleByChannel(FHitResult&, const FVector&, const FVector&, ECollisionChannel, const FCollisionQueryParams& = FCollisionQueryParams(FName(), false)) const { return false; }
 };
 inline UWorld* AActor::GetWorld() const { return nullptr; }
-template <class T> struct TActorIterator { TActorIterator(UWorld*) {} explicit operator bool() const { return false; } T* operator*() const { return nullptr; } TActorIterator& operator++() { return *this; } };
+template <class T> struct TActorIterator { TActorIterator(UWorld*) {} explicit operator bool() const { return false; } T* operator*() const { return nullptr; } T* operator->() const { return nullptr; } TActorIterator& operator++() { return *this; } };
 namespace ConstructorHelpers { template <class T> struct FObjectFinder { FObjectFinder(const wchar_t*) {} bool Succeeded() const { return false; } T* Object = nullptr; }; }
 enum { LOAD_NoWarn = 1, LOAD_Quiet = 2 };
 template <class T> T* LoadObject(UObject*, const TCHAR*, const TCHAR* = nullptr, int = 0) { return nullptr; }
 template <class T> T* LoadObject(UObject*, const FString&, const TCHAR*, int) { return nullptr; }
 struct FModuleManager { static FModuleManager& Get(); template <class M> static M& LoadModuleChecked(const wchar_t*) { static M m; return m; } };
 struct FDefaultGameModuleImpl {};
-struct FConfigCache { void GetString(const TCHAR*, const TCHAR*, FString&, const FString&) {} }; extern FConfigCache* GConfig; extern FString GGameIni;
+struct FConfigCache { void GetString(const TCHAR*, const TCHAR*, FString&, const FString&) {} void GetArray(const TCHAR*, const TCHAR*, TArray<FString>&, const FString&) {} };
+struct FCString { static float Atof(const TCHAR*) { return 0; } }; extern FConfigCache* GConfig; extern FString GGameIni;
 struct FCommandLine { static const TCHAR* Get() { return L""; } }; struct FParse { static bool Value(const TCHAR*, const TCHAR*, FString&) { return false; } };
 #define StaticClass() StaticClassStub()
 

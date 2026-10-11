@@ -7,6 +7,9 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "SpsMaterials.h"
+#include "SpsOverrides.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 
 namespace
 {
@@ -61,8 +64,10 @@ bool FSpsCarVisual::Build(AActor* Owner, USceneComponent* Root, const FSpsModelD
 	if (Meta->TryGetArrayField(TEXT("hoodCam"), Hood) && Hood->Num() >= 3) HoodCam = SpsAxis((*Hood)[0]->AsNumber(), (*Hood)[1]->AsNumber(), (*Hood)[2]->AsNumber()) * 100.0;
 
 	Body = NewObject<UProceduralMeshComponent>(Owner, TEXT("Body"));
+	ProceduralParts.Reset();
 	Body->SetupAttachment(Root); Body->bUseAsyncCooking = true; Body->SetCollisionEnabled(ECollisionEnabled::NoCollision); Body->SetCastShadow(true); Body->RegisterComponent();
 	FillSections(Body, Model.Meshes[0], [](int32 S) { return SPSMaterials::CarSlot(S); });
+	ProceduralParts.Add(Body);
 	LampFront = MakeDynamic(Body, 3); LampRear = MakeDynamic(Body, 4); Indicator = MakeDynamic(Body, 5); BlueL = MakeDynamic(Body, 6); BlueR = MakeDynamic(Body, 7);
 
 	for (int32 i = 0; i < 4; i++)
@@ -73,7 +78,7 @@ bool FSpsCarVisual::Build(AActor* Owner, USceneComponent* Root, const FSpsModelD
 		W->SetupAttachment(Pivot); W->bUseAsyncCooking = true; W->SetCollisionEnabled(ECollisionEnabled::NoCollision); W->SetCastShadow(true); W->RegisterComponent();
 		if (WheelCentres[i].Y < 0) W->SetRelativeRotation(FRotator(0.f, 180.f, 0.f));   // left wheels: mirror the rim
 		FillSections(W, Model.Meshes[1], [](int32 S) { return FString(S == 0 ? TEXT("Tyre") : TEXT("Rim")); });
-		Wheels[i] = W;
+		Wheels[i] = W; ProceduralParts.Add(Pivot);
 	}
 
 	// number plates: text above the (unlit) plate quads, front and rear
@@ -86,11 +91,26 @@ bool FSpsCarVisual::Build(AActor* Owner, USceneComponent* Root, const FSpsModelD
 		{
 			UTextRenderComponent* T = NewObject<UTextRenderComponent>(Owner, bFront ? TEXT("PlateFront") : TEXT("PlateRear"));
 			T->SetupAttachment(Root); T->SetRelativeLocation(Centre + FVector(bFront ? 0.6f : -0.6f, 0, 0)); T->SetRelativeRotation(FRotator(0.f, bFront ? 0.f : 180.f, 0.f));
+			ProceduralParts.Add(T);
 			T->SetText(FText::FromString(Plate)); T->SetWorldSize(6.5f); T->SetTextRenderColor(FColor(15, 15, 18)); T->SetHorizontalAlignment(EHTA_Center); T->SetVerticalAlignment(EVRTA_TextCenter); T->SetCastShadow(false); T->RegisterComponent();
 		};
 		if (NF > 0) AddText(SumF / NF, true);
 		if (NR > 0) AddText(SumR / NR, false);
 	}
+	ApplyOverride(Owner, Root, Model.Key);
+	return true;
+}
+
+bool FSpsCarVisual::ApplyOverride(AActor* Owner, USceneComponent* Root, const FString& ModelKey)
+{
+	const FSpsCarOverride* O = SpsOverrides::FindCar(ModelKey);
+	if (!O) return false;
+	UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *O->Mesh);
+	if (!Mesh) return false;
+	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(Owner, TEXT("CustomMesh"));
+	C->SetupAttachment(Root); C->SetStaticMesh(Mesh); C->SetRelativeLocation(O->Offset); C->SetRelativeRotation(FRotator(0.f, O->Yaw, 0.f)); C->SetRelativeScale3D(FVector(O->Scale, O->Scale, O->Scale));
+	C->SetCollisionEnabled(ECollisionEnabled::NoCollision); C->SetCastShadow(true); C->RegisterComponent();
+	for (USceneComponent* P : ProceduralParts) { if (P) P->SetVisibility(false, true); }
 	return true;
 }
 

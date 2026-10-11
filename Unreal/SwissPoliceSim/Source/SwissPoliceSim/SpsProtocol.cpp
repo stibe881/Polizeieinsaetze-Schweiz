@@ -89,13 +89,15 @@ void SpsCreateSection(UProceduralMeshComponent* Target, int32 SectionIndex, cons
 	const TArray<int32>& Src = M.Sections[Section];
 	TArray<int32> Remap; Remap.SetNumUninitialized(M.Vertices.Num());
 	for (int32 i = 0; i < Remap.Num(); i++) Remap[i] = -1;
-	TArray<FVector> V, N; TArray<FVector2D> UV; TArray<FColor> C; TArray<int32> Idx; Idx.SetNumUninitialized(Src.Num());
+	const bool bUv1 = M.UV1.Num() == M.Vertices.Num();
+	TArray<FVector> V, N; TArray<FVector2D> UV, UV1; TArray<FColor> C; TArray<int32> Idx; Idx.SetNumUninitialized(Src.Num());
 	for (int32 i = 0; i < Src.Num(); i++)
 	{
 		const int32 S = Src[i]; int32 R = Remap[S];
-		if (R < 0) { R = V.Num(); Remap[S] = R; V.Add(M.Vertices[S]); N.Add(M.Normals[S]); UV.Add(M.UV0[S]); C.Add(M.Colors[S]); }
+		if (R < 0) { R = V.Num(); Remap[S] = R; V.Add(M.Vertices[S]); N.Add(M.Normals[S]); UV.Add(M.UV0[S]); if (bUv1) UV1.Add(M.UV1[S]); C.Add(M.Colors[S]); }
 		Idx[i] = R;
 	}
 	TArray<FProcMeshTangent> NoTangents;
-	Target->CreateMeshSection(SectionIndex, V, Idx, N, UV, C, NoTangents, bCollision);
+	if (bUv1) { TArray<FVector2D> Empty; Target->CreateMeshSection(SectionIndex, V, Idx, N, UV, UV1, Empty, Empty, C, NoTangents, bCollision); }
+	else Target->CreateMeshSection(SectionIndex, V, Idx, N, UV, C, NoTangents, bCollision);
 }

@@ -18,8 +18,11 @@ struct FSpsHumanBody
 	uint8 Pose = SpsPose::Idle;
 	float Speed = 0.f;
 	float Height = 175.f;
+	class USkeletalMeshComponent* Skel = nullptr; class UAnimationAsset* WalkAnim = nullptr; class UAnimationAsset* IdleAnim = nullptr; int32 SkelState = -1;
 
 	bool Build(AActor* Owner, USceneComponent* Root, const FSpsModelData& Model);
+	/** Replaces the procedural body by a configured skeletal mesh with walk/idle animation (SpsOverrides). */
+	bool ApplyOverride(AActor* Owner, USceneComponent* Root, const FString& ModelKey);
 	void Animate(float Dt);
 };
 
@@ -38,7 +41,11 @@ public:
 
 	void Init(const FSpsModelData& Model);
 	void SetTarget(const FVector& Pos, float YawDeg, float SpeedMs, uint8 Pose);
+	void ShiftTarget(const FVector& Delta) { TargetPos += Delta; }
+	/** Run over: stays on the ground (the server freezes the pedestrian). */
+	void Fall() { bFallen = true; PoseNow = SpsPose::Fallen; Body.Pose = SpsPose::Fallen; }
 
 private:
-	FVector TargetPos; float TargetYaw = 0.f; bool bFirst = true; uint8 PoseNow = 0;
+	UPROPERTY() TObjectPtr<class UCapsuleComponent> Capsule;
+	FVector TargetPos; float TargetYaw = 0.f; bool bFirst = true, bFallen = false; uint8 PoseNow = 0;
 };

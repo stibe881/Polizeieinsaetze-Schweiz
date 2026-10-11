@@ -248,6 +248,15 @@ namespace SwissServer.Sim
             var v = Traffic?.Find(vehicleId); if (v == null) return; if (relSpeedMs > 3f) { v.Mode = DriverMode.Crashed; v.V = 0; Warn("Kollision mit einem Fahrzeug (" + v.Plate + ")."); }
         }
 
+        /// <summary>The client reports that the player's car hit a pedestrian (or a scene person). The person stays down; the officer answers for it.</summary>
+        public void PedHit(int id, float relSpeedMs, bool actor)
+        {
+            if (relSpeedMs < 1.5f) return;
+            if (!actor && Peds != null) { var p = Peds.Peds.Find(x => x.Id == id); if (p != null) { p.State = PedState.Standing; p.Speed = 0; p.WaitUntil = (float)(Peds.Time + 180); } }
+            if (relSpeedMs > 4f) { Bad("Eine Person wurde angefahren. Rettungsdienst aufbieten und Unfallstelle sichern."); Judge(new LegalAssessment { Lawful = false, Severity = 3, Headline = "Fussgänger angefahren" }, 0.3f); }
+            else Warn("Kontakt mit einer Person. Prüfen Sie, ob sie verletzt ist.");
+        }
+
         // ------------------------------------------------------------------ helpers
         public float HeightAt(double e, double n) { float h = W.Height(e, n); return float.IsNaN(h) ? (float)PH : h; }
     }

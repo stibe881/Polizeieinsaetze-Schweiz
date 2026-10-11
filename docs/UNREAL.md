@@ -21,12 +21,26 @@ Optionen: `-SpsServer=ws://host:47800/ws` (Kommandozeile), `[/Script/SwissPolice
 `ASpsClient` verbindet, hält Modelle/Kacheln, baut `ASpsTile` (Gelände, Strassen, Gebäude, Wasser, Mobiliar, Schiene, zusammengefasste Bäume) als ProceduralMesh, spawnt `ASpsCar` / `ASpsHuman` / `ASpsProp` aus Snapshots, sendet 10×/s die Pose. `ASpsPlayerFoot` (Charakter) und `ASpsPlayerCar` (Arcade-Fahrmodell, Bodenfolge per Line-Trace, Sweep-Kollision) sind die Spielerfiguren. `ASpsAtmosphere` setzt Sonne/Himmel/Wolken/Nebel/Belichtung aus Spielzeit und Wetter (Lumen, Virtual Shadow Maps, SkyAtmosphere, Volumetric Clouds über `DefaultEngine.ini`). `ASpsController` verarbeitet Eingaben und leitet Fenster-Tasten an die Web-UI weiter.
 
 ## So wird es hübscher (der eigentliche Hebel)
-Der Client zeigt die **prozeduralen Meshes** des Servers. Für Spiel-Qualität gehören hochwertige Assets dazu – das ist die Aufgabe der Unreal-Welt:
+Der Client zeigt standardmässig die **prozeduralen Meshes** des Servers. Für Spiel-Qualität gehören hochwertige Assets dazu:
 * **Gebäude/Strassenmobiliar/Vegetation:** Quixel Megascans (Fab, kostenlos für Unreal). Die Materialien (`MI_Plaster`, `MI_Road0` …) lassen sich durch Megascans-Surfaces ersetzen – gleiche Namen unter `/Game/SPS/Materials` genügen.
-* **Fahrzeuge/Personen:** City Sample (Epic, kostenlos) liefert Autos und Fussgänger; MetaHuman für Gesichter. Ein Austausch der prozeduralen `ASpsCar`/`ASpsHuman` durch Skeletal-/Static-Meshes ist **noch nicht eingebaut** (geplant: Zuordnung Modell-Schlüssel → Asset in `DefaultGame.ini`).
+* **Autos und Personen austauschen** (eingebaut, ungetestet): in `Config/DefaultGame.ini`
+  ```
+  [/Script/SwissPoliceSim.SpsModels]
+  +Car=car:police|/Game/Vehicles/SM_PoliceWagon.SM_PoliceWagon|1.0|0|0|0|0
+  +Car=car|/Game/Vehicles/SM_Sedan.SM_Sedan|1.0|0|0|0|0
+  +Human=human|/Game/Characters/SK_Person.SK_Person|/Game/Characters/A_Walk.A_Walk|/Game/Characters/A_Idle.A_Idle|1.0|0|-90|0
+  ```
+  Auto: `Schlüssel-Präfix | Static Mesh | Skalierung | Offset X | Y | Z | Gier` (Mesh-Ursprung = Wagenmitte am Boden, +X vorne, cm). Mensch: `Präfix | Skeletal Mesh | Geh-Animation | Idle-Animation | Skalierung | Offset X | Offset Z | Gier`. Der längste passende Präfix gewinnt (`car:police` vor `car`; Schlüssel siehe `PROTOCOL.md`). City Sample (Autos, Fussgänger) und MetaHuman (Figuren) lassen sich so einhängen.
 * Nanite/Lumen greifen für diese Assets; die prozeduralen Meshes selbst sind weder Nanite noch LOD-optimiert.
+
+## Weitere Funktionen des Clients
+* **Gestaffelter Kachelaufbau** (ein Mesh-Abschnitt pro Aufruf, Zeitbudget 6 ms/Frame) gegen Ruckler.
+* **Origin-Rebasing:** ab 5 km Entfernung vom Ursprung wird die Welt auf ganze Kilometer neu zentriert.
+* **Fussgänger-Kollision:** angefahrene Personen bleiben liegen; der Server bewertet es rechtlich (`pedHit`).
+* **Ampeln:** Signalfarben aus UV1 und dem 60-s-Zyklus (Material `M_Sps_Signal`).
+* **Regen/Schnee:** instanzierte Streifen/Flocken um die Kamera (`ASpsWeather`), Intensität aus dem Server-Wetter.
 
 ## Stand / Ehrlichkeit
 * **Kein Unreal war verfügbar.** Der C++-Code wurde nur gegen eine selbst geschriebene Stub-API geprüft (`Tools/UeCheck/check.sh`: Syntax/Typen). **Er ist nie gegen die echte Engine kompiliert oder gestartet worden**; mit API-Abweichungen (UE 5.4 angenommen) ist zu rechnen. `sps_setup.py` ist ebenfalls ungetestet.
 * **Server und Web-UI sind getestet** (`Tools/SwissClientTest`: End-to-End-Skript, alle Prüfungen grün; Web-UI per Headless-Browser).
-* Bekannte Lücken: kein Regen/Schnee, keine Fussgänger-Kollision mit dem Spielerauto, keine Ampel-Animation (Material-Parameter `Glow` ist vorbereitet), Kachelaufbau ruckelt bei grossen Kacheln (Aufbau pro Kachel am Stück), Origin-Rebasing bei langen Fahrten fehlt, Spiegelbild/Nummernschilder nur einfach.
+* Bekannte Lücken: Regen/Schnee sind einfache Instanzen (kein Niagara, keine nassen Strassen), Nummernschilder sind Textkomponenten, kein Spiegelbild, der Austausch von Menschen setzt Animationsassets voraus (kein Anim-Blueprint-Anschluss), Spielerauto ohne Fahrwerk-Physik (Arcade-Modell).

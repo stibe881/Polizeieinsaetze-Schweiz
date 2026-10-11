@@ -21,9 +21,12 @@ struct FSpsCarVisual
 	FVector WheelCentres[4];
 	FVector DriverEye = FVector(0, 0, 120), HoodCam = FVector(0, 0, 130);
 	float Spin = 0.f;
+	TArray<USceneComponent*> ProceduralParts;   // everything hidden when a real mesh replaces the procedural car
 
 	/** Creates the components under Owner/Root. Returns false when the model is not a car. */
 	bool Build(AActor* Owner, USceneComponent* Root, const FSpsModelData& Model, const FString& Plate);
+	/** Swaps in a configured static mesh (SpsOverrides) and hides the procedural body, wheels and plates. */
+	bool ApplyOverride(AActor* Owner, USceneComponent* Root, const FString& ModelKey);
 	/** Rolls the wheels by DistanceCm and steers the front pair. */
 	void Roll(float DistanceCm, float SteerDeg);
 	/** Lamp state: brake, indicators and the blue light bar (flashing driven by Time). */
@@ -46,6 +49,7 @@ public:
 
 	void Init(const FSpsModelData& Model, const FString& Plate);
 	void SetTarget(const FVector& Pos, float YawDeg, float SpeedMs, uint16 Flags);
+	void ShiftTarget(const FVector& Delta) { TargetPos += Delta; }
 	/** Static scene vehicles: fixed pose, hazards and an optional blue light bar. */
 	void SetStatic(const FVector& Pos, float YawDeg, bool bHazard, bool bBlue);
 

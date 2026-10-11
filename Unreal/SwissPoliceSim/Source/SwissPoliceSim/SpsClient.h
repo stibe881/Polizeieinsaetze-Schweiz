@@ -12,6 +12,7 @@ class ASpsHuman;
 class ASpsPlayerCar;
 class ASpsPlayerFoot;
 class ASpsAtmosphere;
+class ASpsWeather;
 class FJsonObject;
 
 /**
@@ -76,6 +77,8 @@ private:
 	TArray<FPropInfo> PendingProps;
 	FSpsSnapshot LastSnapshot; bool bHaveSnapshot = false;
 	TObjectPtr<ASpsAtmosphere> Atmosphere;
+	TObjectPtr<ASpsWeather> Weather;
+	void MaybeRebase();
 	float ReconnectIn = -1.f;
 	float PoseTimer = 0.f; double StartE = 0, StartN = 0, StartH = 0, StartVE = 0, StartVN = 0, StartVYaw = 0; bool bPlacePending = false; bool bStartInVehicle = false; float StartYaw = 0.f;
 
@@ -86,6 +89,7 @@ private:
 	void HandleText(const TSharedPtr<FJsonObject>& J);
 	void HandleBinary(const TArray<uint8>& Data);
 	void ProcessTiles(double BudgetSeconds);
+	TObjectPtr<ASpsTile> BuildingTile;
 	void ProcessTrees();
 	void ProcessSpawns();
 	void ProcessProps();

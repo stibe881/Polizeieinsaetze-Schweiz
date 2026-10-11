@@ -235,6 +235,52 @@ def build_pbr_master():
     return m
 
 
+def build_signal_master():
+    """Traffic-signal lenses: the server's furniture mesh carries (lens colour, group + phase / 1000) in UV1; the cycle (60 s: green 24, amber 3, red, red+amber last second)
+    is evaluated in a Custom node from the material Time, same as the Unity shader did."""
+    m = new_material("M_Sps_Signal")
+    uv1 = node(m, unreal.MaterialExpressionTextureCoordinate, -900, 0, coordinate_index=1)
+    time = node(m, unreal.MaterialExpressionTime, -900, 200)
+    code = node(m, unreal.MaterialExpressionCustom, -500, 100)
+    code.set_editor_property("code", (
+        "float group = floor(UV.y + 0.0001); float offset = frac(UV.y + 0.0001) * 1000.0; float t = fmod(T + offset + group * 30.0, 60.0); float lens = UV.x;\n"
+        "bool lit = (lens > 1.5 && t < 24.0) || (lens > 0.5 && lens < 1.5 && ((t >= 24.0 && t < 27.0) || t >= 59.0)) || (lens < 0.5 && t >= 27.0);\n"
+        "return lit ? 1.0 : 0.0;"))
+    code.set_editor_property("output_type", unreal.CustomMaterialOutputType.CMOT_FLOAT1)
+    inputs = []
+    for nm in ("UV", "T"):
+        ci = unreal.CustomInput()
+        ci.set_editor_property("input_name", nm)
+        inputs.append(ci)
+    code.set_editor_property("inputs", inputs)
+    link(uv1, code, "UV")
+    link(time, code, "T")
+    base = vertex_color_linear(m, -900, 450)
+    dim = node(m, unreal.MaterialExpressionLinearInterpolate, -200, 300)
+    dark = node(m, unreal.MaterialExpressionConstant, -500, 400, r=0.15)
+    one = node(m, unreal.MaterialExpressionConstant, -500, 480, r=1.0)
+    link(dark, dim, "A")
+    link(one, dim, "B")
+    link(code, dim, "Alpha")
+    albedo = node(m, unreal.MaterialExpressionMultiply, 100, 300)
+    link(base, albedo, "A")
+    link(dim, albedo, "B")
+    mel.connect_material_property(albedo, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    glow = scalar_param(m, "Glow", 8.0, -200, 600)
+    em1 = node(m, unreal.MaterialExpressionMultiply, 100, 600)
+    link(code, em1, "A")
+    link(glow, em1, "B")
+    em2 = node(m, unreal.MaterialExpressionMultiply, 350, 600)
+    link(base, em2, "A")
+    link(em1, em2, "B")
+    mel.connect_material_property(em2, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    rough = scalar_param(m, "Roughness", 0.2, 100, 800)
+    mel.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    mel.recompile_material(m)
+    unreal.EditorAssetLibrary.save_loaded_asset(m)
+    return m
+
+
 # ---------------------------------------------------------------- instances
 # slot -> (parent, texture set or None, tiling per metre, boost, scalar overrides)
 SLOTS = {
@@ -256,7 +302,8 @@ SLOTS = {
     "Shutters": ("M_Sps_VertexColor", None, 0, 1, {"Roughness": 0.6}),
     "Railing": ("M_Sps_VertexColor", None, 0, 1, {"Roughness": 0.4, "Metallic": 0.7}),
     "Furniture": ("M_Sps_Pbr", "Metal032", 0.5, 1.2, {}),
-    "SignalLens": ("M_Sps_VertexColor", None, 0, 1, {"Roughness": 0.2, "Glow": 3.0}),
+    "SignalLens": ("M_Sps_Signal", None, 0, 1, {}),
+    "Rain": ("M_Sps_VertexColor", None, 0, 1, {"Roughness": 0.1, "Glow": 1.5}),
     "SignFace": ("M_Sps_VertexColor", None, 0, 1, {"Roughness": 0.4}),
     "Ballast": ("M_Sps_Pbr", "Gravel022", 0.5, 1.2, {}),
     "Rails": ("M_Sps_VertexColor", None, 0, 1, {"Roughness": 0.4, "Metallic": 0.8}),
@@ -309,7 +356,7 @@ def make_instances():
 
 
 def run():
-    steps = (("import textures", import_textures), ("vertex-colour master", build_vertex_color_master), ("PBR master", build_pbr_master), ("instances", make_instances))
+    steps = (("import textures", import_textures), ("vertex-colour master", build_vertex_color_master), ("PBR master", build_pbr_master), ("signal master", build_signal_master), ("instances", make_instances))
     for label, fn in steps:
         try:
             log("%s ..." % label)

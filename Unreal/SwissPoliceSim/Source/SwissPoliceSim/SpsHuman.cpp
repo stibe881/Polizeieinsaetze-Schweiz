@@ -4,6 +4,11 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "SpsMaterials.h"
+#include "SpsOverrides.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimationAsset.h"
+#include "Engine/SkeletalMesh.h"
 
 bool FSpsHumanBody::Build(AActor* Owner, USceneComponent* Root, const FSpsModelData& Model)
 {
@@ -32,11 +37,37 @@ bool FSpsHumanBody::Build(AActor* Owner, USceneComponent* Root, const FSpsModelD
 			Mesh->SetMaterial(s, SPSMaterials::Get(SPSMaterials::HumanSlot(s)));
 		}
 	}
+	ApplyOverride(Owner, Root, Model.Key);
 	return Parts.Num() > 0;
+}
+
+bool FSpsHumanBody::ApplyOverride(AActor* Owner, USceneComponent* Root, const FString& ModelKey)
+{
+	const FSpsHumanOverride* O = SpsOverrides::FindHuman(ModelKey);
+	if (!O) return false;
+	USkeletalMesh* Mesh = LoadObject<USkeletalMesh>(nullptr, *O->Mesh);
+	if (!Mesh) return false;
+	Skel = NewObject<USkeletalMeshComponent>(Owner, TEXT("CustomSkeletal"));
+	Skel->SetupAttachment(Root); Skel->SetSkeletalMesh(Mesh); Skel->SetRelativeLocation(FVector(O->OffsetX, 0.f, O->OffsetZ)); Skel->SetRelativeRotation(FRotator(0.f, O->Yaw, 0.f)); Skel->SetRelativeScale3D(FVector(O->Scale, O->Scale, O->Scale));
+	Skel->SetCollisionEnabled(ECollisionEnabled::NoCollision); Skel->RegisterComponent();
+	WalkAnim = O->Walk.IsEmpty() ? nullptr : LoadObject<UAnimationAsset>(nullptr, *O->Walk); IdleAnim = O->Idle.IsEmpty() ? nullptr : LoadObject<UAnimationAsset>(nullptr, *O->Idle);
+	for (TPair<FString, USceneComponent*>& P : Parts) { if (P.Value) P.Value->SetVisibility(false, true); }
+	return true;
 }
 
 void FSpsHumanBody::Animate(float Dt)
 {
+	if (Skel)
+	{
+		const int32 Want = (Pose == SpsPose::Walk || Pose == SpsPose::Run || Speed > 0.2f) ? 1 : 0;
+		if (Want != SkelState)
+		{
+			SkelState = Want; UAnimationAsset* A = Want ? WalkAnim : IdleAnim;
+			if (A) { Skel->SetAnimationMode(EAnimationMode::AnimationSingleNode); Skel->PlayAnimation(A, true); }
+		}
+		if (Want) Skel->SetPlayRate(FMath::Clamp(Speed / 1.4f, 0.5f, 3.0f));
+		return;
+	}
 	auto Set = [this](const TCHAR* Name, float PitchDeg, float RollDeg = 0.f)
 	{
 		if (USceneComponent** P = Parts.Find(Name)) (*P)->SetRelativeRotation(FRotator(PitchDeg, 0.f, RollDeg));
@@ -65,12 +96,16 @@ ASpsHuman::ASpsHuman()
 	PrimaryActorTick.bCanEverTick = true;
 	USceneComponent* Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	SetRootComponent(Root);
+	Capsule = CreateDefaultSubobject<UCapsuleComponent>(TEXT("Capsule"));
+	Capsule->SetupAttachment(Root); Capsule->SetRelativeLocation(FVector(0.f, 0.f, 90.f)); Capsule->InitCapsuleSize(35.f, 90.f);
+	Capsule->SetCollisionProfileName(TEXT("Pawn"));
 }
 
 void ASpsHuman::Init(const FSpsModelData& Model) { Body.Build(this, GetRootComponent(), Model); }
 
 void ASpsHuman::SetTarget(const FVector& Pos, float YawDeg, float SpeedMs, uint8 Pose)
 {
+	if (bFallen) { TargetPos = Pos; return; }
 	TargetPos = Pos; TargetYaw = YawDeg; Body.Speed = SpeedMs; PoseNow = Pose; Body.Pose = Pose;
 	if (bFirst) { bFirst = false; SetActorLocationAndRotation(Pos, FRotator(0, YawDeg, 0)); }
 }

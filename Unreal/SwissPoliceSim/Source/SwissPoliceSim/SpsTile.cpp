@@ -69,3 +69,59 @@ void ASpsTile::SetTrees(const FSpsMeshData& Merged)
 	TreePart = NewPart(TEXT("Trees"), true, false);
 	FillMesh(TreePart, Merged, [](int32 S) { return SPSMaterials::TreeSlot(S); }, false);
 }
+
+void ASpsTile::BeginBuild(FSpsTileData&& Data, double OriginE, double OriginN)
+{
+	Clear();
+	Staged = MoveTemp(Data); TileX = Staged.X; TileY = Staged.Y; Quality = Staged.Quality;
+	SetActorLocation(FVector((Staged.Y * 1000.0 - OriginN) * 100.0, (Staged.X * 1000.0 - OriginE) * 100.0, 0.0));
+	bBuilding = true; StageMesh = 0; StageSection = 0; StageComponent = nullptr;
+}
+
+void ASpsTile::StartMesh(const FSpsTileMesh& TM)
+{
+	const bool bNear = Staged.Quality == 1;
+	switch (TM.Kind)
+	{
+	case SpsTileKind::Terrain: StageComponent = NewPart(TEXT("Terrain"), true, bNear); break;
+	case SpsTileKind::Roads: StageComponent = NewPart(TEXT("Roads"), false, bNear); break;
+	case SpsTileKind::BuildingsFar: StageComponent = NewPart(TEXT("BuildingsFar"), true, bNear); break;
+	case SpsTileKind::BuildingsDetail: StageComponent = NewPart(TEXT("BuildingsDetail"), true, bNear); break;
+	case SpsTileKind::Water: StageComponent = NewPart(TEXT("Water"), false, false); break;
+	case SpsTileKind::Furniture: StageComponent = NewPart(TEXT("Furniture"), true, false); break;
+	case SpsTileKind::Rail: StageComponent = NewPart(TEXT("Rail"), true, false); break;
+	default: StageComponent = nullptr; break;
+	}
+	if (StageComponent) Parts.Add(StageComponent);
+}
+
+bool ASpsTile::BuildStep()
+{
+	if (!bBuilding) return true;
+	while (StageMesh < Staged.Meshes.Num())
+	{
+		const FSpsTileMesh& TM = Staged.Meshes[StageMesh];
+		if (TM.Mesh.IsEmpty() || (StageSection == 0 && (StartMesh(TM), StageComponent == nullptr))) { StageMesh++; StageSection = 0; continue; }
+		// find the next non-empty section of this mesh
+		while (StageSection < TM.Mesh.Sections.Num() && TM.Mesh.Sections[StageSection].Num() == 0) StageSection++;
+		if (StageSection >= TM.Mesh.Sections.Num()) { StageMesh++; StageSection = 0; StageComponent = nullptr; continue; }
+		const bool bNear = Staged.Quality == 1; const int32 S = StageSection;
+		const bool bColl = bNear && (TM.Kind == SpsTileKind::Terrain || TM.Kind == SpsTileKind::Roads || TM.Kind == SpsTileKind::BuildingsFar || TM.Kind == SpsTileKind::BuildingsDetail);
+		SpsCreateSection(StageComponent, S, TM.Mesh, S, bColl);
+		FString Slot;
+		switch (TM.Kind)
+		{
+		case SpsTileKind::Terrain: Slot = TEXT("Terrain"); break;
+		case SpsTileKind::Roads: Slot = SPSMaterials::RoadSlot(S); break;
+		case SpsTileKind::BuildingsFar: case SpsTileKind::BuildingsDetail: Slot = SPSMaterials::BuildingSlot(S); break;
+		case SpsTileKind::Water: Slot = TEXT("Water"); break;
+		case SpsTileKind::Furniture: Slot = SPSMaterials::FurnitureSlot(S); break;
+		default: Slot = SPSMaterials::RailSlot(S); break;
+		}
+		StageComponent->SetMaterial(S, SPSMaterials::Get(Slot));
+		StageSection++;
+		return false;   // one section per call
+	}
+	bBuilding = false; Staged = FSpsTileData();
+	return true;
+}
