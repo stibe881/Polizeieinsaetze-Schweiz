@@ -43,7 +43,7 @@ namespace SwissServer.Net
             var nav = g.Nav;
             return new
             {
-                t = "state", paused = g.Paused, time = g.Now.ToString("s"), clock = g.Now.ToString("ddd dd.MM. HH:mm"), hour = g.Hour, timeScale = g.Clock.TimeScale,
+                t = "state", paused = g.Paused, player = new { e = g.PE, n = g.PN, h = g.PH, speed = g.PSpeedKmh, inVehicle = g.PInVehicle, yaw = g.PYaw, vE = g.VE, vN = g.VN, vYaw = g.VYaw, fuel = g.PFuel, damage = g.PDamage }, time = g.Now.ToString("s"), clock = g.Now.ToString("ddd dd.MM. HH:mm"), hour = g.Hour, timeScale = g.Clock.TimeScale,
                 corps = g.Corps?.Name, rank = c != null && g.Corps != null ? c.RankName(g.Corps) : "", place = g.PlaceName, street = g.StreetName, limit = g.SpeedLimitKmh, urban = g.UrbanHere,
                 jurisdiction = new { own = g.Jurisdiction.InOwnTerritory, unknown = g.Jurisdiction.Kind == JurisdictionKind.Unknown, text = g.Corps != null ? g.Jurisdiction.Describe(g.Corps) : "" },
                 sun = new { el = sun.el, az = sun.az, daylight = SunModel.Daylight(sun.el) },

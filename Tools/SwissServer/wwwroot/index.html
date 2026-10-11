@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swiss Police Simulator</title>
+<link rel="stylesheet" href="ui.css">
+</head>
+<body>
+<canvas id="sandbox"></canvas>
+<div id="hud" class="hidden">
+  <div id="topbar"></div>
+  <div id="notes"></div>
+  <div id="offer" class="panel hidden"></div>
+  <div id="incident" class="panel hidden"></div>
+  <div id="navbanner" class="hidden"></div>
+  <div id="speedo" class="panel"></div>
+  <div id="radar" class="panel hidden"></div>
+  <div id="pursuit" class="panel hidden"></div>
+  <canvas id="minimap" width="440" height="440"></canvas>
+  <div id="prompt" class="hidden"></div>
+  <div id="crosshair" class="hidden"></div>
+</div>
+<div id="win" class="hidden"></div>
+<div id="menu" class="hidden"></div>
+<div id="conn" class="panel">Verbinde mit dem Server …</div>
+<script src="ui.js"></script>
+</body>
+</html>

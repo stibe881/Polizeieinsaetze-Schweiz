@@ -77,7 +77,7 @@ namespace SwissServer.Net
             while (_cmds.TryDequeue(out var cm)) { try { Handle(cm.c, cm.msg); } catch (Exception ex) { Console.WriteLine("command error: " + ex.Message); cm.c.SendText(JsonSerializer.Serialize(new { t = "error", message = ex.Message })); } }
             Game.Tick(dt); Game.TickScenery(); _tick++;
             if (!Game.Playing) return;
-            foreach (var c in Clients()) if (c.Role == "game") { StreamTiles(c); SendEntities(c); }
+            foreach (var c in Clients()) { if (c.Role == "game") StreamTiles(c); if (c.Role == "game" || c.Role == "sandbox") SendEntities(c); }
             if (_tick % 5 == 0) { string st = JsonSerializer.Serialize(Snapshotter.State(Game), Json); foreach (var c in Clients()) c.SendText(st); }
         }
 
@@ -94,8 +94,9 @@ namespace SwissServer.Net
                 case "pause": g.Paused = m.GetProperty("on").GetBoolean(); break;
                 case "timescale": g.Clock.TimeScale = (float)Math.Max(1, Math.Min(60, m.GetProperty("v").GetDouble())); break;
                 case "pose":
-                    g.SetPose(m.GetProperty("e").GetDouble(), m.GetProperty("n").GetDouble(), m.GetProperty("h").GetDouble(), (float)m.GetProperty("yaw").GetDouble(), (float)m.GetProperty("speed").GetDouble(), m.GetProperty("inVehicle").GetBoolean(),
-                        m.TryGetProperty("siren", out var si) && si.GetBoolean(), m.TryGetProperty("blue", out var bl) && bl.GetBoolean(), m.GetProperty("vE").GetDouble(), m.GetProperty("vN").GetDouble(), m.GetProperty("vH").GetDouble(), (float)m.GetProperty("vYaw").GetDouble(),
+                    double pe0 = m.GetProperty("e").GetDouble(), pn0 = m.GetProperty("n").GetDouble(); double ph0 = m.TryGetProperty("h", out var hh) && hh.ValueKind == JsonValueKind.Number ? hh.GetDouble() : g.HeightAt(pe0, pn0); double vh0 = m.TryGetProperty("vH", out var vhh) && vhh.ValueKind == JsonValueKind.Number ? vhh.GetDouble() : ph0;
+                    g.SetPose(pe0, pn0, ph0, (float)m.GetProperty("yaw").GetDouble(), (float)m.GetProperty("speed").GetDouble(), m.GetProperty("inVehicle").GetBoolean(),
+                        m.TryGetProperty("siren", out var si) && si.GetBoolean(), m.TryGetProperty("blue", out var bl) && bl.GetBoolean(), m.GetProperty("vE").GetDouble(), m.GetProperty("vN").GetDouble(), vh0, (float)m.GetProperty("vYaw").GetDouble(),
                         m.TryGetProperty("fuel", out var fu) ? (float)fu.GetDouble() : 1f, m.TryGetProperty("damage", out var da) ? (float)da.GetDouble() : 0f); break;
                 case "model": SendModel(c, m.GetProperty("key").GetString()); break;
                 case "accept": g.Accept(); break; case "decline": g.Decline(); break;
@@ -119,6 +120,7 @@ namespace SwissServer.Net
                 case "notebook": c.SendText(JsonSerializer.Serialize(new { t = "notebook", cases = g.Cases, log = g.NoteLog.TakeLast(80).Select(x => x.text).ToArray() }, Json)); break;
                 case "skip": if (g.Career != null && g.Career.Suspended) { g.Clock.ElapsedGameSeconds = g.Career.SuspendedUntil + 1; g.Career.Suspended = false; g.Career.ComplaintsOpen = 0; g.Career.InvestigationsOpen = Math.Max(0, g.Career.InvestigationsOpen - 1); g.Warn("Die Suspendierung ist abgelaufen. Sie sind wieder im Dienst."); } break;
                 case "promote": if (g.Career != null && g.Career.TryPromote()) g.Good("Befördert zum Rang: " + g.Career.RankName(g.Corps)); break;
+                case "ui": Broadcast(m); break;
                 case "ping": c.SendText("{\"t\":\"pong\"}"); break;
             }
         }
@@ -158,12 +160,14 @@ namespace SwissServer.Net
         // ------------------------------------------------------------------ models
         public void SendModel(ClientConn c, string key)
         {
+            if (c.Role != "game") return;
             if (!c.Models.Add(key)) return; var data = ModelWire.Build(key); if (data == null) { c.Models.Remove(key); return; } c.SendBinary(data);
         }
 
         // ------------------------------------------------------------------ entities
         void SendEntities(ClientConn c)
         {
+            bool models = c.Role == "game";
             var g = Game; var spawns = new List<object>(); var gone = new List<int>(); var goneP = new List<int>();
             if (g.Traffic != null)
             {

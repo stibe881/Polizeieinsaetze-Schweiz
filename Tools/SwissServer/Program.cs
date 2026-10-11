@@ -49,7 +49,7 @@ namespace SwissServer
             app.MapGet("/map/tile/{x:int}/{y:int}.png", (int x, int y) =>
             {
                 var id = new TileId(x, y); var c = store.Content(id); if (c == null) return Results.NotFound();
-                var t = TileMeshBuilder.Build(store.Source.TryRead(id, out var bytes) ? bytes : null, false); var px = MapRasterizer.RenderTile(t, 256); return Results.File(Png.EncodeRgba(256, 256, px), "image/png");
+                var t = TileMeshBuilder.Build(store.Source.TryRead(id, out var bytes) ? bytes : null, false); var px = MapRasterizer.RenderTile(t, 512); return Results.File(Png.EncodeRgba(512, 512, px), "image/png");
             });
             app.MapGet("/map/macro/{x:int}/{y:int}.png", (int x, int y) =>
             {
