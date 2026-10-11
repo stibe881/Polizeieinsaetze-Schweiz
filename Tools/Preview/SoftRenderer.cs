@@ -41,9 +41,9 @@ public sealed class SoftRenderer
     public Vector3 CamPos, CamTarget, CamUp = Vector3.UnitY;
     public float FovY = 55f, Near = 0.2f, Far = 6000f;
     public Vector3 SunDir = Vector3.Normalize(new Vector3(-0.45f, -0.75f, -0.35f));   // direction the light travels
-    public Vector3 SunColor = new Vector3(1.0f, 0.93f, 0.80f) * 2.2f;
+    public Vector3 SunColor = new Vector3(1.0f, 0.93f, 0.80f) * 3.2f;
     public Vector3 SkyZenith = new Vector3(0.22f, 0.42f, 0.78f), SkyHorizon = new Vector3(0.72f, 0.82f, 0.92f);
-    public Vector3 AmbientSky = new Vector3(0.50f, 0.58f, 0.72f), AmbientGround = new Vector3(0.26f, 0.25f, 0.22f);
+    public Vector3 AmbientSky = new Vector3(0.30f, 0.40f, 0.60f), AmbientGround = new Vector3(0.16f, 0.15f, 0.13f);
     public float FogDensity = 1f / 5200f;
     public bool Shadows = true;
 
@@ -281,13 +281,13 @@ public sealed class SoftRenderer
                 var nrm = Vector3.Normalize(a.Normal * p0 + b.Normal * p1 + c.Normal * p2);
                 if (mat.DoubleSided && Vector3.Dot(nrm, CamPos - wp) < 0) nrm = -nrm;
 
-                Vector3 albedo = mat.Base; float alpha = mat.Alpha;
-                if (mat.UseVertexColor) albedo *= vc;
+                Vector3 albedo = Lin(mat.Base); float alpha = mat.Alpha;
+                if (mat.UseVertexColor) albedo *= Lin(vc);
                 if (mat.Mips != null)
                 {
                     SampleTex(mat.Mips[lod], uv.X * mat.UvScale, uv.Y * mat.UvScale, out float tr, out float tg, out float tb, out float ta);
-                    if (mat.CutoutAlpha) { if (ta < 0.5f) continue; albedo = new Vector3(tr, tg, tb) * mat.Base; alpha = 1; }
-                    else { albedo *= new Vector3(tr, tg, tb); if (mat.Alpha >= 0.999f) alpha = 1; else alpha *= ta; }
+                    if (mat.CutoutAlpha) { if (ta < 0.5f) continue; albedo = Lin(new Vector3(tr, tg, tb)) * (mat.UseVertexColor ? Lin(vc) : Vector3.One) * Lin(mat.Base); alpha = 1; }
+                    else { albedo *= Lin(new Vector3(tr, tg, tb)); if (mat.Alpha >= 0.999f) alpha = 1; else alpha *= ta; }
                 }
                 Vector3 col;
                 var toCam = CamPos - wp; float dist = toCam.Length(); var V = toCam / Math.Max(1e-5f, dist);
@@ -317,6 +317,9 @@ public sealed class SoftRenderer
             }
     }
 
+    static Vector3 Lin(Vector3 c) => new Vector3(Lin1(c.X), Lin1(c.Y), Lin1(c.Z));
+    static float Lin1(float v) => v <= 0 ? 0 : v * v * (0.2f * v + 0.8f);    // ≈ v^2.2 (sRGB texture → linear)
+
     static void SampleTex(Image t, float u, float v, out float r, out float g, out float b, out float a)
     {
         float fx = u * t.W - 0.5f, fy = v * t.H - 0.5f; int x0 = (int)Math.Floor(fx), y0 = (int)Math.Floor(fy); float tx = fx - x0, ty = fy - y0;
@@ -327,8 +330,55 @@ public sealed class SoftRenderer
     static float Bil(float a, float b, float c, float d, float tx, float ty) => (a + (b - a) * tx) * (1 - ty) + (c + (d - c) * tx) * ty;
 
     // ------------------------------------------------------------------ output
+    public bool PostFx = true; public float AoRadius = 1.4f, AoStrength = 0.85f, BloomStrength = 0.22f, Exposure = 1f;
+
+    /// <summary>Screen-space ambient occlusion + bloom on the linear HDR buffer (stand-ins for the URP SSAO / Bloom of the real game).</summary>
+    void PostProcess()
+    {
+        float focal = PH * 0.5f / (float)Math.Tan(FovY * Math.PI / 360);
+        var ao = new float[PW * PH];
+        var pts = new List<Vector2>(); var rnd = new Random(5);
+        for (int i = 0; i < 14; i++) { double a = i * 2.39996 + 0.3; double r = Math.Sqrt((i + 0.5) / 14.0); pts.Add(new Vector2((float)(Math.Cos(a) * r), (float)(Math.Sin(a) * r))); }
+        Parallel.For(0, PH, y =>
+        {
+            for (int x = 0; x < PW; x++)
+            {
+                int di = y * PW + x; float z = _depth[di]; if (z >= 1e8f || z > 400f) { ao[di] = 1; continue; }
+                float rad = AoRadius / z * focal; if (rad < 1.5f) { ao[di] = 1; continue; }
+                rad = Math.Min(rad, PH * 0.12f);
+                float ang = ((x * 7 + y * 13) % 17) * 0.37f, ca = (float)Math.Cos(ang), sa = (float)Math.Sin(ang);
+                float occ = 0;
+                foreach (var p in pts)
+                {
+                    float ox = (p.X * ca - p.Y * sa) * rad, oy = (p.X * sa + p.Y * ca) * rad;
+                    int sx = x + (int)ox, sy = y + (int)oy; if ((uint)sx >= (uint)PW || (uint)sy >= (uint)PH) continue;
+                    float sz = _depth[sy * PW + sx]; float diff = z - sz;
+                    if (diff > 0.12f && diff < AoRadius * 2.2f) occ += 1f - Math.Min(1f, diff / (AoRadius * 2.2f)) * 0.5f;
+                }
+                ao[di] = 1f - AoStrength * Math.Min(1f, occ / pts.Count * 1.9f);
+            }
+        });
+        // light blur of the AO to hide the noise
+        var ao2 = new float[PW * PH];
+        Parallel.For(0, PH, y => { for (int x = 0; x < PW; x++) { float sum = 0; int n = 0; for (int dy = -2; dy <= 2; dy += 2) for (int dx = -2; dx <= 2; dx += 2) { int sx = x + dx, sy = y + dy; if ((uint)sx >= (uint)PW || (uint)sy >= (uint)PH) continue; sum += ao[sy * PW + sx]; n++; } ao2[y * PW + x] = sum / n; } });
+        Parallel.For(0, PH, y => { for (int x = 0; x < PW; x++) { int di = y * PW + x; float k = ao2[di]; int ci = di * 3; _col[ci] *= k; _col[ci + 1] *= k; _col[ci + 2] *= k; } });
+
+        // bloom: bright pass → separable box blur at 1/4 resolution → add
+        int bw = Math.Max(1, PW / 4), bh = Math.Max(1, PH / 4); var bl = new float[bw * bh * 3];
+        Parallel.For(0, bh, y => { for (int x = 0; x < bw; x++) { float r = 0, g = 0, b = 0; for (int dy = 0; dy < 4; dy++) for (int dx = 0; dx < 4; dx++) { int i = ((y * 4 + dy) * PW + x * 4 + dx) * 3; float lr = _col[i], lg = _col[i + 1], lb = _col[i + 2]; float lum = 0.3f * lr + 0.59f * lg + 0.11f * lb; float k = Math.Max(0, lum - 1.3f) / Math.Max(lum, 1e-4f); r += lr * k; g += lg * k; b += lb * k; } int o = (y * bw + x) * 3; bl[o] = r / 16; bl[o + 1] = g / 16; bl[o + 2] = b / 16; } });
+        int R = Math.Max(2, bw / 50); var tmp = new float[bl.Length];
+        for (int pass = 0; pass < 2; pass++)
+        {
+            Parallel.For(0, bh, y => { for (int x = 0; x < bw; x++) { float r = 0, g = 0, b = 0; int n = 0; for (int d = -R; d <= R; d++) { int sx = Math.Min(bw - 1, Math.Max(0, x + d)); int i = (y * bw + sx) * 3; r += bl[i]; g += bl[i + 1]; b += bl[i + 2]; n++; } int o = (y * bw + x) * 3; tmp[o] = r / n; tmp[o + 1] = g / n; tmp[o + 2] = b / n; } });
+            Parallel.For(0, bh, y => { for (int x = 0; x < bw; x++) { float r = 0, g = 0, b = 0; int n = 0; for (int d = -R; d <= R; d++) { int sy = Math.Min(bh - 1, Math.Max(0, y + d)); int i = (sy * bw + x) * 3; r += tmp[i]; g += tmp[i + 1]; b += tmp[i + 2]; n++; } int o = (y * bw + x) * 3; bl[o] = r / n; bl[o + 1] = g / n; bl[o + 2] = b / n; } });
+        }
+        Parallel.For(0, PH, y => { for (int x = 0; x < PW; x++) { int o = (Math.Min(bh - 1, y / 4) * bw + Math.Min(bw - 1, x / 4)) * 3; int ci = (y * PW + x) * 3; _col[ci] += bl[o] * BloomStrength; _col[ci + 1] += bl[o + 1] * BloomStrength; _col[ci + 2] += bl[o + 2] * BloomStrength; } });
+    }
+
     public void SavePng(string path, float exposure = 1f)
     {
+        if (PostFx) PostProcess();
+        exposure *= Exposure;
         var rgb = new byte[W * H * 3];
         Parallel.For(0, H, y =>
         {
@@ -345,8 +395,11 @@ public sealed class SoftRenderer
 
     static byte Tone(float v)
     {
-        v = v / (1 + v * 0.18f);                       // gentle shoulder
-        v = (float)Math.Pow(Math.Max(0, v), 1 / 2.2f);
+        // ACES filmic (Narkowicz) then sRGB
+        v = Math.Max(0, v) * 0.85f;
+        v = (v * (2.51f * v + 0.03f)) / (v * (2.43f * v + 0.59f) + 0.14f);
+        v = Math.Max(0, Math.Min(1, v));
+        v = v <= 0.0031308f ? v * 12.92f : 1.055f * (float)Math.Pow(v, 1 / 2.4f) - 0.055f;
         return (byte)Math.Min(255, v * 255 + 0.5f);
     }
 }

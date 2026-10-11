@@ -47,7 +47,7 @@ namespace SwissPoliceSim.Core.Textures
     }
 
     /// <summary>Seamlessly tiling procedural textures shared by Unity (runtime) and the software preview renderer.</summary>
-    public static class ProceduralTextures
+    public static partial class ProceduralTextures
     {
         // ---------------- tiling value noise
         static float Hash(int x, int y, int seed)
@@ -85,7 +85,11 @@ namespace SwissPoliceSim.Core.Textures
         {
             float a = Fbm(u, v, 6, 4, 1), b = Fbm(u, v, 24, 3, 2), blades = Noise(u * 96, v * 96, 96, 3);
             float k = 0.55f * a + 0.35f * b + 0.10f * blades;
-            return new[] { 0.17f + 0.13f * k, 0.27f + 0.20f * k, 0.09f + 0.07f * k };
+            float patch = Fbm(u, v, 3, 3, 7), clover = Noise(u * 40, v * 40, 40, 9);
+            float dry = Math.Max(0, patch - 0.55f) * 1.6f;                     // sun-bleached patches
+            float cr = 0.27f + 0.16f * k + 0.12f * dry + 0.03f * clover, cg = 0.36f + 0.18f * k + 0.08f * dry, cb = 0.14f + 0.06f * k + 0.02f * dry;
+            float blade = (blades - 0.5f) * 0.16f;
+            return new[] { cr + blade * 0.7f, cg + blade, cb + blade * 0.5f };
         });
         public static Image ForestFloor(int n = 256) => Make(n, (u, v) => { float k = Fbm(u, v, 8, 4, 5), s = Noise(u * 64, v * 64, 64, 6); return new[] { 0.17f + 0.14f * k + 0.04f * s, 0.14f + 0.10f * k, 0.08f + 0.05f * k }; });
         public static Image Field(int n = 256) => Make(n, (u, v) =>
@@ -106,14 +110,14 @@ namespace SwissPoliceSim.Core.Textures
         public static Image Asphalt(int n = 256) => Make(n, (u, v) =>
         {
             float k = Fbm(u, v, 16, 4, 61), g = Noise(u * 128, v * 128, 128, 62), cracks = Math.Abs(Noise(u * 10, v * 10, 10, 63) - 0.5f) < 0.004f ? 0.82f : 1f;
-            float c = (0.115f + 0.045f * k + 0.035f * g) * cracks;
+            float c = (0.34f + 0.10f * k + 0.07f * g) * cracks;
             return new[] { c, c, c * 1.02f };
         });
         public static Image Pavement(int n = 256) => Make(n, (u, v) =>
         {
             float px = u * 4, py = v * 4; float fx = px - (float)Math.Floor(px), fy = py - (float)Math.Floor(py);
             float joint = (fx < 0.03f || fy < 0.03f) ? 0.65f : 1f; float k = Hash((int)px, (int)py, 71);
-            float c = (0.40f + 0.06f * k + 0.04f * Fbm(u, v, 24, 2, 72)) * joint;
+            float c = (0.56f + 0.07f * k + 0.05f * Fbm(u, v, 24, 2, 72)) * joint;
             return new[] { c, c * 0.98f, c * 0.94f };
         });
         public static Image Gravel2Rail(int n = 256) => Gravel(n);

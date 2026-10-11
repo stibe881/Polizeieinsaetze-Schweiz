@@ -32,6 +32,7 @@ static class Program
         var r = new SoftRenderer(w, h, ss);
         var mats = new Mats();
         if (scene.StartsWith("car")) { CarScene(r, mats, scene); }
+        else if (scene == "trees") { TreeScene(r, mats); }
         else WorldScene(r, mats, data, scene, cam);
         r.SavePng(outPath);
         Console.WriteLine("wrote " + outPath);
@@ -40,7 +41,7 @@ static class Program
 
     sealed class Mats
     {
-        public Mat Grass = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Grass()), UvScale = 1f, Specular = 0 };
+        public Mat Grass = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Grass()), UvScale = 2.5f, Specular = 0 };
         public Mat Asphalt0 = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Asphalt()), Specular = 0.12f, Gloss = 20 };
         public Mat Asphalt1 = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Asphalt()), Specular = 0.12f, Gloss = 20 };
         public Mat Asphalt2 = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Asphalt()), Specular = 0.1f, Gloss = 20 };
@@ -51,12 +52,33 @@ static class Program
         public Mat Facade2 = new Mat { Mips = Mat.MakeMips(ProceduralTextures.FacadeIndustrial()), Specular = 0.03f };
         public Mat RoofPitched = new Mat { Mips = Mat.MakeMips(ProceduralTextures.RoofTiles()), Specular = 0.06f, DoubleSided = true };
         public Mat RoofFlat = new Mat { Mips = Mat.MakeMips(ProceduralTextures.FlatRoof()), Specular = 0.02f, DoubleSided = true };
+        public Mat Plaster = new Mat { Mips = Mat.MakeMips(ProceduralTextures.PlasterWall()), Specular = 0.02f };
+        public Mat Window = new Mat { Mips = Mat.MakeMips(ProceduralTextures.WindowAtlas()), Specular = 0.55f, Gloss = 90, Sky = true };
+        public Mat Trim = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Stone()), Specular = 0.03f, DoubleSided = true };
+        public Mat ShutterM = new Mat { Mips = Mat.MakeMips(ProceduralTextures.ShutterSlats()), Specular = 0.05f, DoubleSided = true };
+        public Mat Railing = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Railing()), CutoutAlpha = true, DoubleSided = true };
         public Mat Water = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Water()), Alpha = 0.82f, Specular = 0.9f, Gloss = 180, Sky = true, UseVertexColor = false, DoubleSided = true };
         public Mat Metal = new Mat { UseVertexColor = true, Specular = 0.3f, Gloss = 30 };
         public Mat Lens = new Mat { UseVertexColor = true, Emissive = new Vector3(0.35f), Specular = 0.5f };
         public Mat SignFace = new Mat { UseVertexColor = true, Specular = 0.3f, DoubleSided = true };
         public Mat Trunk = new Mat { UseVertexColor = true };
-        public Mat Foliage = new Mat { UseVertexColor = true, Specular = 0.04f };
+        public Mat Foliage = new Mat { Mips = Mat.MakeMips(ProceduralTextures.FoliageAtlas()), UseVertexColor = true, CutoutAlpha = true, DoubleSided = true, Specular = 0.04f };
+    }
+
+    static void TreeScene(SoftRenderer r, Mats m)
+    {
+        var ground = new MeshData(1);
+        ground.AddQuad(0, new[] { -60f, 0, 60f }, new[] { 60f, 0, 60f }, new[] { 60f, 0, -30f }, new[] { -60f, 0, -30f }, 0, 0, 30, 30, 120, 160, 80);
+        r.Add(ground, Matrix4x4.Identity, m.Grass);
+        float x = -30;
+        foreach (var (kind, lod) in new[] { ((byte)0, 0), ((byte)0, 1), ((byte)0, 2), ((byte)1, 0), ((byte)1, 1), ((byte)1, 2) })
+        {
+            float H = kind == 0 ? 15f : 22f, Rr = kind == 0 ? 4.5f : 3.0f; var tm = TreeMesher.Build(kind, 1, lod, TreeMesher.RatioBucket(Rr, H));
+            r.Add(tm, Matrix4x4.CreateScale(H) * Matrix4x4.CreateTranslation(x, 0, 18), m.Trunk, m.Foliage);
+            x += 12;
+        }
+        r.CamPos = new Vector3(0, 4, -30); r.CamTarget = new Vector3(0, 9, 18); r.FovY = 50;
+        r.Render(new Vector3(0, 0, 0), 300);
     }
 
     // ------------------------------------------------------------------ world
@@ -68,7 +90,7 @@ static class Program
         var contents = new List<TileContent>();
         for (int dx = -rad; dx <= rad; dx++)
             for (int dy = -rad; dy <= rad; dy++)
-                if (src.TryRead(new TileId(cx + dx, cy + dy), out var bytes)) contents.Add(TileMeshBuilder.Build(bytes));
+                if (src.TryRead(new TileId(cx + dx, cy + dy), out var bytes)) contents.Add(TileMeshBuilder.Build(bytes, true, scene != "aerial"));
         Console.WriteLine($"loaded {contents.Count} tiles");
 
         var treeMeshes = new Dictionary<(byte, int, int), MeshData>();
@@ -78,23 +100,8 @@ static class Program
             r.Add(TerrainMesh(t, 1), off, m.Grass);
             r.Add(t.RoadMesh, off, m.Asphalt0, m.Asphalt1, m.Asphalt2, m.Sidewalk, m.MarkWhite, m.MarkWhite);
             r.Add(t.FurnitureMesh, off, m.Metal, m.Lens, m.SignFace);
-            r.Add(t.BuildingMesh, off, m.Facade0, m.Facade1, m.Facade2, m.RoofPitched, m.RoofFlat);
+            r.Add(t.BuildingMeshDetail ?? t.BuildingMesh, off, m.Facade0, m.Facade1, m.Facade2, m.RoofPitched, m.RoofFlat, m.Plaster, m.Window, m.Trim, m.ShutterM, m.Railing);
             if (t.WaterMesh != null) r.Add(t.WaterMesh, off, m.Water);
-            int rn = 0;
-            foreach (var tr in t.Trees)
-            {
-                double lx = tr.E - TileGrid.MinE(t.Tile), lz = tr.N - TileGrid.MinN(t.Tile);
-                double wx = tr.E - OE, wz = tr.N - ON;
-                if (scene == "street" && Math.Abs(wx) + Math.Abs(wz) > 500) continue;
-                if (scene == "aerial" && (rn++ % 3) != 0 && Math.Abs(wx) + Math.Abs(wz) > 700) continue;    // thin out distant trees for preview speed
-                int variant = (int)((tr.E * 7 + tr.N * 13)) & 3;
-                bool near = Math.Abs(wx) + Math.Abs(wz) < 600;
-                int lod = (Math.Abs(wx) + Math.Abs(wz) < 220) ? 0 : (near ? 1 : 2);
-                if (!treeMeshes.TryGetValue((tr.Kind, variant, lod), out var tm)) treeMeshes[(tr.Kind, variant, lod)] = tm = TreeMesher.Build(tr.Kind, variant, lod);
-                float gy = t.Terrain != null ? t.Terrain.SampleLocal(lx, lz) : 0;
-                var mat = Matrix4x4.CreateScale(tr.Radius * 1.0f, tr.Height, tr.Radius * 1.0f) * Matrix4x4.CreateTranslation((float)wx, gy - 0.2f, (float)wz);
-                r.Add(tm, mat, m.Trunk, m.Foliage);
-            }
         }
 
         if (scene == "drive") { DriveScene(r, m, contents, cam); return; }
@@ -113,7 +120,33 @@ static class Program
             float gp = Ground(contents, px, pz), gl = Ground(contents, lx, lz);
             r.CamPos = new Vector3(px, gp + hh, pz); r.CamTarget = new Vector3(lx, gl + hh * 0.9f, lz); r.FovY = float.Parse(q[5]);
         }
+        AddTrees(r, m, contents, scene, scene == "aerial" ? new Vector3(-420, 0, -520) : new Vector3(r.CamPos.X, 0, r.CamPos.Z));
         r.Render(new Vector3(0, 520, 0), scene == "aerial" ? 1900 : 700);
+    }
+
+    static readonly Dictionary<(byte, int, int), MeshData> TreeCache = new Dictionary<(byte, int, int), MeshData>();
+    static void AddTrees(SoftRenderer r, Mats m, List<TileContent> contents, string scene, Vector3 cam)
+    {
+        foreach (var t in contents)
+        {
+            var off = Matrix4x4.CreateTranslation((float)(TileGrid.MinE(t.Tile) - OE), 0, (float)(TileGrid.MinN(t.Tile) - ON));
+            int rn = 0;
+            foreach (var tr in t.Trees)
+            {
+                double lx = tr.E - TileGrid.MinE(t.Tile), lz = tr.N - TileGrid.MinN(t.Tile);
+                double wx = tr.E - OE, wz = tr.N - ON;
+                double dd = Math.Sqrt((wx - cam.X) * (wx - cam.X) + (wz - cam.Z) * (wz - cam.Z));
+                if (scene != "aerial" && dd > 700) continue;
+                if (scene == "aerial" && (rn++ % 3) != 0 && dd > 700) continue;
+                int variant = (int)((tr.E * 7 + tr.N * 13)) & 3;
+                int lod = dd < 160 ? 0 : (dd < 420 ? 1 : 2);
+                int rb = TreeMesher.RatioBucket(tr.Radius, tr.Height); int key = lod * 8 + rb;
+                if (!TreeCache.TryGetValue((tr.Kind, variant, key), out var tm)) TreeCache[(tr.Kind, variant, key)] = tm = TreeMesher.Build(tr.Kind, variant, lod, rb);
+                float gy = t.Terrain != null ? t.Terrain.SampleLocal(lx, lz) : 0;
+                var mat = Matrix4x4.CreateScale(tr.Height) * Matrix4x4.CreateTranslation((float)wx, gy - 0.2f, (float)wz);
+                r.Add(tm, mat, m.Trunk, m.Foliage);
+            }
+        }
     }
 
     static void DriveScene(SoftRenderer r, Mats m, List<TileContent> contents, string cam)
@@ -186,6 +219,7 @@ static class Program
         float cy = Ground(contents, cxp, czp) + 1.7f;
         r.CamPos = new Vector3(cxp, cy, czp);
         var look = At(60); r.CamTarget = new Vector3((float)(look.e - OE), Ground(contents, (float)(look.e - OE), (float)(look.n - ON)) + 1.2f, (float)(look.n - ON)); r.FovY = 58;
+        AddTrees(r, m, contents, "drive", new Vector3(cxp, 0, czp));
         r.Render(new Vector3(cxp, 540, czp), 420);
     }
 

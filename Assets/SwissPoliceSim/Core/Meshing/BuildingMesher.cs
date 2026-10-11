@@ -34,17 +34,21 @@ namespace SwissPoliceSim.Core.Meshing
 
     public static class BuildingMesher
     {
-        public const int WallsResidential = 0, WallsCommercial = 1, WallsIndustrial = 2, RoofPitched = 3, RoofFlat = 4, Submeshes = 5;
+        public const int WallsResidential = 0, WallsCommercial = 1, WallsIndustrial = 2, RoofPitched = 3, RoofFlat = 4, PlasterWall = 5, WindowSub = 6, TrimSub = 7, ShutterSub = 8, RailingSub = 9, Submeshes = 10;
         const double Pitch = 0.9;      // rise per half-width limit for derived wings (≈ 42°)
 
         public static MeshData NewMesh() => new MeshData(Submeshes);
 
         /// <summary>Appends one building (tile-local coordinates, y = m a.s.l.). Returns false if it has no valid ground/height.</summary>
-        public static bool Build(BuildingFeature b, double tileE, double tileN, MeshData m, BuildingStyle style)
+        public static bool Build(BuildingFeature b, double tileE, double tileN, MeshData m, BuildingStyle style, bool detail = false, bool oldTown = false, bool[] partyWall = null)
         {
             if (float.IsNaN(b.GroundHeight) || b.Footprint.Outer.Count < 3) return false;
             var rnd = new Random(b.ColorSeed);
-            float yBase = b.GroundHeight - 0.5f, yEave = b.GroundHeight + b.EaveHeight, yRidge = b.GroundHeight + b.RidgeHeight;
+            float eaveH = b.EaveHeight, ridgeH = b.RidgeHeight;
+            // measured heights can include overhanging trees / neighbours: plausibility limits per building kind
+            if (b.Kind == BuildingKind.Garage || b.Kind == BuildingKind.Shed) { eaveH = Math.Min(eaveH, 4.2f); ridgeH = Math.Min(ridgeH, eaveH + 2.0f); }
+            else if (b.Kind == BuildingKind.House || b.Kind == BuildingKind.Generic) { ridgeH = Math.Min(ridgeH, eaveH + 6.5f); }
+            float yBase = b.GroundHeight - 0.5f, yEave = b.GroundHeight + eaveH, yRidge = b.GroundHeight + ridgeH;
             var wall = Pick(style.WallPalette, rnd, b.Tag_Colour);
             var roof = Pick(style.RoofPalette, rnd, b.Tag_RoofColour);
             if (b.Kind == BuildingKind.Industrial || b.Kind == BuildingKind.Shed) wall = Tint(new byte[] { 190, 192, 192 }, rnd, 12);
@@ -52,8 +56,19 @@ namespace SwissPoliceSim.Core.Meshing
                         : b.Kind == BuildingKind.Industrial || b.Kind == BuildingKind.Shed || b.Kind == BuildingKind.Garage ? WallsIndustrial : WallsResidential;
 
             // ---- walls
-            AddWalls(m, b.Footprint.Outer, tileE, tileN, yBase, yEave, wallSub, wall);
-            foreach (var h in b.Footprint.Holes) AddWalls(m, h, tileE, tileN, yBase, yEave, wallSub, wall);
+            DetailPlan plan = null;
+            if (detail)
+            {
+                plan = DetailPlan.Make(b, oldTown, b.GroundHeight, yEave, new Random(b.ColorSeed * 31 + 7));
+                FacadeDetailer.AddWalls(m, b.Footprint, b.Footprint.Outer, false, tileE, tileN, yBase, b.GroundHeight, yEave, b, plan, oldTown, wall, rnd, partyWall);
+                foreach (var h in b.Footprint.Holes) FacadeDetailer.AddWalls(m, b.Footprint, h, true, tileE, tileN, yBase, b.GroundHeight, yEave, b, plan, oldTown, wall, rnd, null);
+                wallSub = PlasterWall;
+            }
+            else
+            {
+                AddWalls(m, b.Footprint.Outer, tileE, tileN, yBase, yEave, wallSub, wall);
+                foreach (var h in b.Footprint.Holes) AddWalls(m, h, tileE, tileN, yBase, yEave, wallSub, wall);
+            }
 
             // ---- roof
             var shape = b.Roof == (RoofShape)255 ? RoofShape.Gabled : b.Roof;
@@ -65,6 +80,7 @@ namespace SwissPoliceSim.Core.Meshing
             if (coverage >= 0.9 && b.Footprint.Holes.Count == 0)
             {
                 AddPitchedRect(m, centre, u, hl, hs, tileE, tileN, yEave, Math.Min(rise, hs * 1.25), shape, 0.35, roof, wall, wallSub);
+                if (plan != null && shape == RoofShape.Gabled) RoofDetail.Add(m, plan, centre, u, hl, hs, tileE, tileN, yEave, Math.Min(rise, hs * 1.25), roof, wall, new Random(b.ColorSeed * 17 + 3));
             }
             else
             {

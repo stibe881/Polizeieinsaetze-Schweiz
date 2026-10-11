@@ -45,6 +45,17 @@ namespace SwissPoliceSim.Core.Meshing
 
         static Profile For(BodyKind k)
         {
+            var p = ForRaw(k);
+            // plan-view taper: the nose and tail are narrower than the body so the corners read as rounded
+            int n = p.Half.Length;
+            p.Half[n - 1][1] *= 0.84f; p.Half[0][1] *= 0.88f;
+            return p;
+        }
+
+        static float Smooth(float t) { t = t < 0 ? 0 : (t > 1 ? 1 : t); return t * t * (3 - 2 * t); }
+
+        static Profile ForRaw(BodyKind k)
+        {
             switch (k)
             {
                 case BodyKind.Hatchback: return new Profile
@@ -178,7 +189,7 @@ namespace SwissPoliceSim.Core.Meshing
         static List<RP> HalfRing(Profile pr, float z, float fa, float ra, float archR, byte[] body, byte[] stripe, float zFront, float zRear)
         {
             float T = Eval(pr.Top, z), W = Eval(pr.Half, z);
-            float yb = pr.Clearance;
+            float yb = pr.Clearance + 0.24f * Smooth((z - (zFront - 0.42f)) / 0.42f) + 0.17f * Smooth(((zRear + 0.36f) - z) / 0.36f);   // bumper sweeps up towards the tips (approach / departure angle)
             // arch lift for the side bottom edge
             float lift = 0;
             foreach (var wz in new[] { fa, ra })
@@ -370,19 +381,32 @@ namespace SwissPoliceSim.Core.Meshing
         static void Details(MeshData m, BodyKind kind, Profile pr, CarModel model, CarLivery liv, float fa, float ra, float tx, float zf, float zr)
         {
             float halfF = Eval(pr.Half, zf - 0.02f), halfR = Eval(pr.Half, zr + 0.02f);
-            // ---- front: grille, headlights, fog lights, plate
-            float yGrille = 0.66f;
-            MeshUtil.Box(m, SubTrim, 0, yGrille, zf - 0.01f, 0.62f, 0.14f, 0.04f, 18, 18, 20);
-            MeshUtil.Box(m, SubChrome, 0, yGrille + 0.08f, zf - 0.005f, 0.64f, 0.012f, 0.03f, 150, 152, 156);
+            // ---- front: grille, intake, headlamp clusters, fog lamps, plate
+            float tipHalf = Eval(pr.Half, zf), innerHalf = Eval(pr.Half, zf - 0.32f);
+            float taper = (float)Math.Atan2(innerHalf - tipHalf, 0.32f);
+            MeshUtil.Box(m, SubTrim, 0, 0.665f, zf + 0.001f, 0.50f, 0.13f, 0.03f, 16, 16, 18);                  // upper grille
+            MeshUtil.Box(m, SubChrome, 0, 0.735f, zf + 0.006f, 0.52f, 0.012f, 0.03f, 150, 152, 156);
+            MeshUtil.Box(m, SubChrome, 0, 0.595f, zf + 0.006f, 0.52f, 0.010f, 0.03f, 150, 152, 156);
+            for (int g = -2; g <= 2; g++) MeshUtil.Box(m, SubChrome, g * 0.10f, 0.665f, zf + 0.012f, 0.006f, 0.11f, 0.02f, 120, 122, 126);
+            MeshUtil.Box(m, SubTrim, 0, 0.475f, zf + 0.001f, 0.84f, 0.11f, 0.03f, 12, 12, 14);                  // lower intake
+            for (int g = 0; g < 4; g++) MeshUtil.Box(m, SubTrim, 0, 0.44f + g * 0.03f, zf + 0.010f, 0.80f, 0.008f, 0.03f, 34, 34, 38);
             for (int s = -1; s <= 1; s += 2)
             {
-                MeshUtil.Box(m, SubLampFront, s * 0.60f, 0.80f, zf - 0.075f, 0.42f, 0.085f, 0.07f, 235, 238, 245);
-                MeshUtil.Box(m, SubTrim, s * 0.60f, 0.855f, zf - 0.072f, 0.44f, 0.012f, 0.075f, 25, 25, 28);
-                MeshUtil.Box(m, SubIndicator, s * 0.83f, 0.80f, zf - 0.11f, 0.07f, 0.06f, 0.07f, 255, 160, 20);
-                MeshUtil.Box(m, SubTrim, s * 0.62f, 0.50f, zf - 0.015f, 0.20f, 0.07f, 0.03f, 20, 20, 22);   // fog light surround
-                MeshUtil.Box(m, SubLampFront, s * 0.62f, 0.50f, zf - 0.005f, 0.12f, 0.04f, 0.02f, 225, 228, 235);
+                // headlamp: flat part on the nose (beside the grille) + corner part following the tapered fender
+                MeshUtil.Box(m, SubTrim, s * 0.46f, 0.700f, zf + 0.001f, 0.34f, 0.115f, 0.03f, 22, 22, 26);
+                MeshUtil.Box(m, SubLampFront, s * 0.46f, 0.704f, zf + 0.009f, 0.30f, 0.085f, 0.02f, 238, 240, 248);
+                MeshUtil.Box(m, SubLampFront, s * 0.46f, 0.648f, zf + 0.010f, 0.28f, 0.012f, 0.02f, 250, 252, 255);
+                float x1 = tipHalf - 0.02f, z1 = zf, z2 = zf - 0.30f, x2 = Eval(pr.Half, z2) - 0.03f;
+                float cx = s * (x1 + x2) * 0.5f, cz = (z1 + z2) * 0.5f, len = (float)Math.Sqrt((x2 - x1) * (x2 - x1) + (z2 - z1) * (z2 - z1));
+                float yaw = s * (float)Math.Atan2(-(z2 - z1), x2 - x1);
+                float nx = (z2 - z1) * s, nz = -(x2 - x1);   // outward normal offset direction (approx.)
+                MeshUtil.Box(m, SubTrim, cx, 0.700f, cz + 0.012f, len, 0.115f, 0.03f, 22, 22, 26, yaw);
+                MeshUtil.Box(m, SubLampFront, cx, 0.704f, cz + 0.020f, len - 0.03f, 0.085f, 0.02f, 238, 240, 248, yaw);
+                MeshUtil.Box(m, SubIndicator, s * (x2 + 0.02f), 0.70f, z2 - 0.02f, 0.05f, 0.06f, 0.10f, 255, 160, 20);
+                MeshUtil.Box(m, SubTrim, s * 0.60f, 0.47f, zf + 0.001f, 0.18f, 0.08f, 0.03f, 18, 18, 20);                  // fog lamp surround
+                MeshUtil.Box(m, SubLampFront, s * 0.60f, 0.47f, zf + 0.009f, 0.11f, 0.045f, 0.02f, 225, 228, 235);
             }
-            Plate(m, 0, 0.40f, zf + 0.012f, 0.30f, 0.08f, true, liv.Plate ?? "BE 000000");
+            Plate(m, 0, 0.545f, zf + 0.026f, 0.30f, 0.08f, true, liv.Plate ?? "BE 000000");
             // ---- rear: tail lights, plate, bumper strip
             for (int s = -1; s <= 1; s += 2)
             {

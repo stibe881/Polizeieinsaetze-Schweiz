@@ -21,7 +21,7 @@ namespace SwissPoliceSim.Core.Meshing
         public List<PointFeature> Points = new List<PointFeature>();
         public List<RailFeature> Rails = new List<RailFeature>();
         public List<BuildingFeature> Buildings = new List<BuildingFeature>();
-        public MeshData RoadMesh, BuildingMesh, WaterMesh, FurnitureMesh;
+        public MeshData RoadMesh, BuildingMesh, BuildingMeshDetail, WaterMesh, FurnitureMesh;
     }
 
     public static class TileMeshBuilder
@@ -30,7 +30,7 @@ namespace SwissPoliceSim.Core.Meshing
         static readonly Lv95 AltstadtCentre = SwissCoordinateConverter.ToLv95(46.9480, 7.4474);
         const double AltstadtRadius = 480;
 
-        public static TileContent Build(byte[] containerBytes, bool meshes = true)
+        public static TileContent Build(byte[] containerBytes, bool meshes = true, bool detail = false)
         {
             var c = TileContainer.Deserialize(containerBytes);
             var t = new TileContent { Tile = c.Tile };
@@ -75,6 +75,17 @@ namespace SwissPoliceSim.Core.Meshing
                 BuildingMesher.Build(b, te, tn, bm, old ? BuildingStyle.Sandstone : BuildingStyle.Swiss);
             }
             t.BuildingMesh = bm;
+            if (detail)
+            {
+                var dm = BuildingMesher.NewMesh(); var party = PartyWalls.Compute(t.Buildings);
+                foreach (var b in t.Buildings)
+                {
+                    var cen = PolygonUtil.Centroid(b.Footprint.Outer);
+                    bool old = Math.Sqrt(Math.Pow(cen.X - AltstadtCentre.E, 2) + Math.Pow(cen.Y - AltstadtCentre.N, 2)) < AltstadtRadius;
+                    BuildingMesher.Build(b, te, tn, dm, old ? BuildingStyle.Sandstone : BuildingStyle.Swiss, true, old, party[b]);
+                }
+                t.BuildingMeshDetail = dm;
+            }
             return t;
         }
     }
