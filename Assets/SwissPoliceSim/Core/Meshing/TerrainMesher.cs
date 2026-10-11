@@ -74,6 +74,25 @@ namespace SwissPoliceSim.Core.Meshing
             return m;
         }
 
+        /// <summary>Horizon terrain of an 8 km macro block (129×129 samples), block-local coordinates, lowered by <paramref name="drop"/> m so the real tiles always cover it.</summary>
+        public static MeshData BuildMacro(MacroBlock b, float drop = 10f)
+        {
+            int n = MacroBlock.Samples; float sp = (float)b.Spacing; var m = new MeshData(1);
+            for (int j = 0; j < n; j++)
+                for (int i = 0; i < n; i++)
+                {
+                    float x = i * sp, z = j * sp, y = b.Height(i, j) - drop;
+                    float hx = b.Height(Math.Min(n - 1, i + 1), j) - b.Height(Math.Max(0, i - 1), j), hz = b.Height(i, Math.Min(n - 1, j + 1)) - b.Height(i, Math.Max(0, j - 1));
+                    float nx = -hx, nz = -hz, ny = 2 * sp, l = (float)Math.Sqrt(nx * nx + ny * ny + nz * nz);
+                    byte cls = b.Land[Math.Min(127, (int)(z / 62.5f)) * 128 + Math.Min(127, (int)(x / 62.5f))];
+                    var st = StyleOf(cls); float slope = 1f - ny / l; float rock = Math.Max(st.Rock, Math.Min(1f, Math.Max(0f, (slope - 0.22f) * 3f)));
+                    int vi = m.AddVertex(x, y, z, nx / l, ny / l, nz / l, (float)(b.MinE + x) * 0.1f, (float)(b.MinN + z) * 0.1f, st.R, st.G, st.B);
+                    m.SetUv2(vi, rock, Math.Min(1f - rock, st.Paved));
+                }
+            for (int j = 0; j < n - 1; j++) for (int i = 0; i < n - 1; i++) { int a = j * n + i, bb = a + 1, c = a + n, e = c + 1; m.AddTriangle(0, a, c, bb); m.AddTriangle(0, bb, c, e); }
+            return m;
+        }
+
         static void AddSkirt(MeshData m, int n, int fixedIndex, bool alongX, bool far)
         {
             int first = m.VertexCount;

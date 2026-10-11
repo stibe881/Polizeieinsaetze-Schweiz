@@ -1,74 +1,58 @@
 using UnityEngine;
-#if ENABLE_INPUT_SYSTEM && SPS_HAS_INPUTSYSTEM
-using UnityEngine.InputSystem;
-#endif
 
 namespace SwissPoliceSim.Player
 {
     /// <summary>
-    /// Thin input abstraction so gameplay code works with the new Input System or the legacy Input Manager
-    /// (whichever "Active Input Handling" is set to). Keyboard + mouse for Phase 1.
+    /// Input abstraction over the legacy Input Manager (the project does not use the Input System package, so Player Settings → Active Input Handling = "Input Manager (Old)").
+    /// Keyboard + mouse; all bindings are in one place so they can be shown in the help screen.
     /// </summary>
     public static class GameInput
     {
-        public static float Throttle() => Axis(Key.W, Key.S);                // forward +, reverse/brake -
-        public static float Steer() => Axis(Key.D, Key.A);
-        public static Vector2 Move() => new Vector2(Axis(Key.D, Key.A), Axis(Key.W, Key.S));
-        public static bool Handbrake() => Held(Key.Space);
-        public static bool Run() => Held(Key.LeftShift);
-        public static bool Interact() => Pressed(Key.F);
-        public static bool CameraToggle() => Pressed(Key.C);
-        public static bool Headlights() => Pressed(Key.L);
-        public static bool BlueLights() => Pressed(Key.B);
-        public static bool Siren() => Pressed(Key.Q);
-        public static bool IndicatorLeft() => Pressed(Key.Z);
-        public static bool IndicatorRight() => Pressed(Key.X);
-        public static bool Hazard() => Pressed(Key.H);
-        public static bool NextDestination() => Pressed(Key.N);
-        public static bool ClearRoute() => Pressed(Key.M);
-        public static bool ToggleCursor() => Pressed(Key.Escape);
-        public static bool FirstPersonToggle() => Pressed(Key.V);
+        // ---- driving / walking
+        public static float Throttle() => Axis(KeyCode.W, KeyCode.S);
+        public static float Steer() => Axis(KeyCode.D, KeyCode.A);
+        public static Vector2 Move() => new Vector2(Axis(KeyCode.D, KeyCode.A), Axis(KeyCode.W, KeyCode.S));
+        public static bool Handbrake() => Held(KeyCode.Space);
+        public static bool Run() => Held(KeyCode.LeftShift);
+        public static bool Jump() => Pressed(KeyCode.Space);
+        public static bool Horn() => Held(KeyCode.H);
+        public static bool Headlights() => Pressed(KeyCode.L);
+        public static bool BlueLights() => Pressed(KeyCode.B);
+        public static bool Siren() => Pressed(KeyCode.Q);
+        public static bool IndicatorLeft() => Pressed(KeyCode.Z);
+        public static bool IndicatorRight() => Pressed(KeyCode.X);
+        public static bool Hazard() => Pressed(KeyCode.J);
+        // ---- interaction
+        public static bool Use() => Pressed(KeyCode.F);                 // enter / exit vehicle, use
+        public static bool Talk() => Pressed(KeyCode.E);                // address a person / driver
+        public static bool StopVehicle() => Pressed(KeyCode.G);         // signal "Anhalten"
+        public static bool Radar() => Pressed(KeyCode.R);               // hand-held speed measurement
+        public static bool Fire1() => Input.GetMouseButtonDown(0);
+        public static bool Fire1Held() => Input.GetMouseButton(0);
+        public static bool Fire2() => Input.GetMouseButtonDown(1);
+        public static bool Fire2Held() => Input.GetMouseButton(1);
+        // ---- UI
+        public static bool Computer() => Pressed(KeyCode.Tab);
+        public static bool Map() => Pressed(KeyCode.M);
+        public static bool Radio() => Pressed(KeyCode.T);
+        public static bool Accept() => Pressed(KeyCode.Return) || Pressed(KeyCode.KeypadEnter);
+        public static bool Decline() => Pressed(KeyCode.Backspace);
+        public static bool CameraToggle() => Pressed(KeyCode.C);
+        public static bool FirstPersonToggle() => Pressed(KeyCode.V);
+        public static bool Escape() => Pressed(KeyCode.Escape);
+        public static bool QuickSave() => Pressed(KeyCode.F5);
+        public static bool QuickLoad() => Pressed(KeyCode.F9);
+        public static bool Help() => Pressed(KeyCode.F1);
+        public static bool Report() => Pressed(KeyCode.P);
+        public static bool Notebook() => Pressed(KeyCode.N);
 
-        public enum Key { W, A, S, D, Space, LeftShift, F, C, L, B, Q, Z, X, H, N, M, Escape, V }
-
-#if ENABLE_INPUT_SYSTEM && SPS_HAS_INPUTSYSTEM
-        static UnityEngine.InputSystem.Controls.KeyControl K(Key k)
-        {
-            var kb = Keyboard.current;
-            if (kb == null) return null;
-            switch (k)
-            {
-                case Key.W: return kb.wKey; case Key.A: return kb.aKey; case Key.S: return kb.sKey; case Key.D: return kb.dKey;
-                case Key.Space: return kb.spaceKey; case Key.LeftShift: return kb.leftShiftKey;
-                case Key.F: return kb.fKey; case Key.C: return kb.cKey; case Key.L: return kb.lKey; case Key.B: return kb.bKey;
-                case Key.Q: return kb.qKey; case Key.Z: return kb.zKey; case Key.X: return kb.xKey; case Key.H: return kb.hKey;
-                case Key.N: return kb.nKey; case Key.M: return kb.mKey; case Key.Escape: return kb.escapeKey; case Key.V: return kb.vKey;
-            }
-            return null;
-        }
-        static bool Held(Key k) { var c = K(k); return c != null && c.isPressed; }
-        static bool Pressed(Key k) { var c = K(k); return c != null && c.wasPressedThisFrame; }
-        public static Vector2 LookDelta() => Mouse.current != null ? Mouse.current.delta.ReadValue() * 0.08f : Vector2.zero;
-        public static float Scroll() => Mouse.current != null ? Mouse.current.scroll.ReadValue().y * 0.01f : 0f;
-#else
-        static KeyCode C(Key k)
-        {
-            switch (k)
-            {
-                case Key.W: return KeyCode.W; case Key.A: return KeyCode.A; case Key.S: return KeyCode.S; case Key.D: return KeyCode.D;
-                case Key.Space: return KeyCode.Space; case Key.LeftShift: return KeyCode.LeftShift;
-                case Key.F: return KeyCode.F; case Key.C: return KeyCode.C; case Key.L: return KeyCode.L; case Key.B: return KeyCode.B;
-                case Key.Q: return KeyCode.Q; case Key.Z: return KeyCode.Z; case Key.X: return KeyCode.X; case Key.H: return KeyCode.H;
-                case Key.N: return KeyCode.N; case Key.M: return KeyCode.M; case Key.Escape: return KeyCode.Escape; case Key.V: return KeyCode.V;
-            }
-            return KeyCode.None;
-        }
-        static bool Held(Key k) => Input.GetKey(C(k));
-        static bool Pressed(Key k) => Input.GetKeyDown(C(k));
+        public static bool Held(KeyCode k) => Input.GetKey(k);
+        public static bool Pressed(KeyCode k) => Input.GetKeyDown(k);
         public static Vector2 LookDelta() => new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y")) * 3f;
         public static float Scroll() => Input.mouseScrollDelta.y;
-#endif
+        static float Axis(KeyCode pos, KeyCode neg) => (Input.GetKey(pos) ? 1f : 0f) - (Input.GetKey(neg) ? 1f : 0f);
 
-        static float Axis(Key pos, Key neg) => (Held(pos) ? 1f : 0f) - (Held(neg) ? 1f : 0f);
+        /// <summary>True while a UI text field has keyboard focus (gameplay keys must be ignored then).</summary>
+        public static bool TextInputActive { get; set; }
     }
 }

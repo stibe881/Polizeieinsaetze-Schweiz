@@ -30,6 +30,16 @@ namespace SwissPoliceSim.Core.Traffic
         public readonly List<int> Out = new List<int>();
         public readonly List<int> In = new List<int>();     // links that end where this one starts
         public float EndHeading;         // heading (rad from north) of the last segment
+        public float[] H;                // road surface height (m a.s.l.) per vertex, null if unknown
+
+        /// <summary>Road surface height at s along the link; returns fallback when the data has no heights.</summary>
+        public float HeightAt(float s, float fallback)
+        {
+            if (H == null) return fallback;
+            if (s <= 0) return H[0]; if (s >= Length) return H[H.Length - 1];
+            int i = 1; while (i < Cum.Length - 1 && Cum[i] < s) i++;
+            float seg = Cum[i] - Cum[i - 1]; float t = seg > 1e-4f ? (s - Cum[i - 1]) / seg : 0; return H[i - 1] + (H[i] - H[i - 1]) * t;
+        }
 
         public void PointAt(float s, out double e, out double n, out float dirE, out float dirN)
         {
@@ -52,7 +62,7 @@ namespace SwissPoliceSim.Core.Traffic
     public sealed class TrafficNetwork
     {
         public readonly List<TLink> Links = new List<TLink>();
-        public readonly List<double> NodeE = new List<double>(), NodeN = new List<double>();
+        public readonly List<double> NodeE = new List<double>(), NodeN = new List<double>(); public readonly List<float> NodeH = new List<float>();
         readonly Dictionary<long, int> _nodeIndex = new Dictionary<long, int>();
         public readonly Dictionary<long, (int group0Dummy, float offset)> SignalNodes = new Dictionary<long, (int, float)>();
         readonly Dictionary<long, PointKind> _nodeSign = new Dictionary<long, PointKind>();
@@ -73,10 +83,10 @@ namespace SwissPoliceSim.Core.Traffic
             return net;
         }
 
-        int Node(long osm, double e, double n)
+        int Node(long osm, double e, double n, float h = float.NaN)
         {
-            if (_nodeIndex.TryGetValue(osm, out int i)) return i;
-            i = NodeE.Count; _nodeIndex[osm] = i; NodeE.Add(e); NodeN.Add(n); return i;
+            if (_nodeIndex.TryGetValue(osm, out int i)) { if (float.IsNaN(NodeH[i]) && !float.IsNaN(h)) NodeH[i] = h; return i; }
+            i = NodeE.Count; _nodeIndex[osm] = i; NodeE.Add(e); NodeN.Add(n); NodeH.Add(h); return i;
         }
 
         public int NodeOf(long osm) => _nodeIndex.TryGetValue(osm, out int i) ? i : -1;
@@ -103,7 +113,8 @@ namespace SwissPoliceSim.Core.Traffic
                 wayList.Add(w);
                 for (int k = 0; k + 1 < w.PointCount; k++)
                 {
-                    int a = Node(w.NodeIds[k], w.E[k], w.N[k]), b = Node(w.NodeIds[k + 1], w.E[k + 1], w.N[k + 1]);
+                    bool hasH = w.H != null && w.H.Length == w.PointCount;
+                    int a = Node(w.NodeIds[k], w.E[k], w.N[k], hasH ? (float)w.H[k] : float.NaN), b = Node(w.NodeIds[k + 1], w.E[k + 1], w.N[k + 1], hasH ? (float)w.H[k + 1] : float.NaN);
                     if (a == b) continue;
                     if (w.OneWay != OneWay.Reverse) Add(edges, outE, inE, new Edge { Way = w, A = a, B = b, Rev = false, SegIdx = k });
                     if (w.OneWay != OneWay.Forward) Add(edges, outE, inE, new Edge { Way = w, A = b, B = a, Rev = true, SegIdx = k });
@@ -208,6 +219,16 @@ namespace SwissPoliceSim.Core.Traffic
                 Name = way.Name, Ref = way.Ref, WayId = way.OsmId, LimitKmh = Math.Max(10, way.SpeedKmh), LimitBasis = way.SpeedBasis
             };
             l.LimitMs = l.LimitKmh / 3.6f;
+            {   // heights: node heights along the chain, gaps filled from the nearest known value
+                var hl = new List<float> { NodeH[first.A] }; foreach (int ei in seq) hl.Add(NodeH[edges[ei].B]);
+                bool any = false; foreach (var v in hl) if (!float.IsNaN(v)) { any = true; break; }
+                if (any)
+                {
+                    float last2 = float.NaN; for (int i = 0; i < hl.Count; i++) { if (!float.IsNaN(hl[i])) last2 = hl[i]; else if (!float.IsNaN(last2)) hl[i] = last2; }
+                    last2 = float.NaN; for (int i = hl.Count - 1; i >= 0; i--) { if (!float.IsNaN(hl[i])) last2 = hl[i]; else hl[i] = last2; }
+                    l.H = hl.ToArray();
+                }
+            }
             l.Cum = new float[l.E.Length];
             for (int i = 1; i < l.E.Length; i++) l.Cum[i] = l.Cum[i - 1] + (float)Math.Sqrt(Math.Pow(l.E[i] - l.E[i - 1], 2) + Math.Pow(l.N[i] - l.N[i - 1], 2));
             l.Length = l.Cum[l.Cum.Length - 1];

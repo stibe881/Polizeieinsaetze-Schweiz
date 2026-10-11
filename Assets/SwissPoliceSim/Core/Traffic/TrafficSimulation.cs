@@ -63,13 +63,13 @@ namespace SwissPoliceSim.Core.Traffic
     /// <summary>Microscopic traffic simulation on the link network (IDM car following, signals, priorities, emergency vehicles).</summary>
     public sealed class TrafficSimulation
     {
-        public readonly TrafficNetwork Net; public readonly TrafficParams P;
+        public TrafficNetwork Net { get; private set; } public readonly TrafficParams P;
         public readonly List<TrafficVehicle> Vehicles = new List<TrafficVehicle>();
         public float Time;
         public event Action<TrafficEvent> Violation;
         public event Action<TrafficVehicle, TrafficVehicle> Crash;
         readonly Random _rnd; int _nextId = 1;
-        readonly List<List<TrafficVehicle>> _byLink;
+        List<List<TrafficVehicle>> _byLink;
         readonly List<float> _tmp = new List<float>();
         readonly List<TrafficVehicle> _remove = new List<TrafficVehicle>();
         public event Action<TrafficVehicle> Despawned;
@@ -84,6 +84,37 @@ namespace SwissPoliceSim.Core.Traffic
         }
 
         public Random Rng => _rnd;
+        /// <summary>Physics-driven vehicles (the player) that the AI must see; updated with <see cref="UpdateExternal"/>.</summary>
+        public readonly List<TrafficVehicle> Externals = new List<TrafficVehicle>();
+
+        /// <summary>Moves the simulation onto a rebuilt network (the player has driven far enough that the streamed area changed). Vehicles are re-attached to the nearest link
+        /// that points the same way; the others are removed.</summary>
+        public void Rebase(TrafficNetwork net)
+        {
+            Net = net; _byLink = new List<List<TrafficVehicle>>(); for (int i = 0; i < net.Links.Count; i++) _byLink.Add(new List<TrafficVehicle>());
+            for (int i = Vehicles.Count - 1; i >= 0; i--)
+            {
+                var v = Vehicles[i]; int li = net.Nearest(v.E, v.N, 5, out float s);
+                bool ok = li >= 0;
+                if (ok) { var l = net.Links[li]; l.PointAt(s, out _, out _, out float dx, out float dn); ok = dx * v.DirE + dn * v.DirN > 0.5f && l.Length > s + 1; }
+                if (!ok) { Vehicles.RemoveAt(i); Despawned?.Invoke(v); continue; }
+                v.Link = li; v.S = s; v.Plan.Clear(); v.NextLink = -1; v.NextLink = ChooseNext(v, net.Links[li]);
+                _byLink[li].Add(v);
+            }
+        }
+
+        /// <summary>Keeps the player's (or any physics-driven) vehicle visible to the AI as an obstacle/leader on the nearest matching link.</summary>
+        public void UpdateExternal(TrafficVehicle ext, double e, double n, float dirE, float dirN, float speedMs)
+        {
+            ext.External = true;
+            if (!Externals.Contains(ext)) Externals.Add(ext);
+            int li = Net.Nearest(e, n, 9, out float s);
+            if (li >= 0) { var l = Net.Links[li]; l.PointAt(s, out _, out _, out float dx, out float dn); if (dx * dirE + dn * dirN < 0.3f && speedMs > 2f) li = -1; }
+            ext.E = e; ext.N = n; ext.DirE = dirE; ext.DirN = dirN; ext.V = speedMs;
+            if (li < 0) { ext.Link = -1; return; }
+            var link = Net.Links[li]; link.PointAt(s, out double le, out double ln, out float ldx, out float ldn);
+            ext.Link = li; ext.S = s; ext.Lat = (float)((e - le) * ldn - (n - ln) * ldx); ext.LatTarget = ext.Lat;
+        }
 
         // ------------------------------------------------------------------ spawning
         public TrafficVehicle SpawnAt(int link, float s, float speedFactor = 1f, int lane = 0)
@@ -521,6 +552,7 @@ namespace SwissPoliceSim.Core.Traffic
         {
             for (int i = 0; i < _byLink.Count; i++) _byLink[i].Clear();
             foreach (var v in Vehicles) _byLink[v.Link].Add(v);
+            foreach (var x in Externals) if (x.Link >= 0 && x.Link < _byLink.Count) _byLink[x.Link].Add(x);
             for (int i = 0; i < _byLink.Count; i++) if (_byLink[i].Count > 1) _byLink[i].Sort((a, b) => b.S.CompareTo(a.S));
         }
 

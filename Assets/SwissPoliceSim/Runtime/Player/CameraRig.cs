@@ -1,91 +1,76 @@
+using System;
+using SwissPoliceSim.Core.Meshing;
+using SwissPoliceSim.Vehicles;
 using UnityEngine;
 
 namespace SwissPoliceSim.Player
 {
-    public enum CameraMode { OnFootThird, OnFootFirst, VehicleChase, VehicleCockpit, VehicleHood }
-
-    /// <summary>One camera for all situations: third/first person on foot, chase / cockpit / hood in the vehicle.</summary>
+    /// <summary>Chase / cockpit / hood camera for the vehicle and third / first person camera on foot, with collision, speed FOV and impact shake.</summary>
     public sealed class CameraRig : MonoBehaviour
     {
-        public Camera cam;
-        public CameraMode Mode { get; private set; } = CameraMode.VehicleChase;
-        public Transform FootTarget, VehicleTarget, CockpitAnchor, HoodAnchor;
-        public bool CursorLocked { get; private set; }
-
-        float _yaw, _pitch = 12f, _dist = 5.5f, _chaseYawOffset;
-
-        public Transform YawSource => cam.transform;
-
-        void Start() { SetCursorLocked(true); }
-
-        public void SetCursorLocked(bool locked)
-        {
-            CursorLocked = locked;
-            Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
-            Cursor.visible = !locked;
-        }
-
-        public void SetMode(CameraMode m) { Mode = m; }
-        public void CycleVehicleMode()
-        {
-            Mode = Mode == CameraMode.VehicleChase ? CameraMode.VehicleCockpit
-                 : Mode == CameraMode.VehicleCockpit ? CameraMode.VehicleHood : CameraMode.VehicleChase;
-        }
+        public enum View { Chase, Cockpit, Hood, FootThird, FootFirst }
+        public Camera Cam; public PlayerController Player;
+        public View VehicleView = View.Chase, FootView = View.FootThird;
+        public float Yaw, Pitch = 12f; float _userYaw, _userPitch, _lastLook, _shake; Vector3 _vel; float _fov = 62f;
+        public View Current => Player != null && Player.InVehicle ? VehicleView : FootView;
 
         void LateUpdate()
         {
-            if (cam == null) return;
-            var look = CursorLocked ? GameInput.LookDelta() : Vector2.zero;
-            _dist = Mathf.Clamp(_dist - GameInput.Scroll() * 0.5f, 2.5f, 12f);
-            var t = cam.transform;
-
-            switch (Mode)
+            if (Cam == null || Player == null) return;
+            if (!UiState.Blocking && Cursor.lockState == CursorLockMode.Locked)
             {
-                case CameraMode.OnFootThird:
-                case CameraMode.OnFootFirst:
-                    if (FootTarget == null) return;
-                    _yaw += look.x; _pitch = Mathf.Clamp(_pitch - look.y, -60f, 70f);
-                    var rot = Quaternion.Euler(_pitch, _yaw, 0);
-                    var head = FootTarget.position + Vector3.up * 1.6f;
-                    if (Mode == CameraMode.OnFootFirst) { t.SetPositionAndRotation(head, rot); }
-                    else
-                    {
-                        var pivot = FootTarget.position + Vector3.up * 1.5f;
-                        var desired = pivot - rot * Vector3.forward * _dist * 0.6f;
-                        if (Physics.Linecast(pivot, desired, out var hit)) desired = hit.point + hit.normal * 0.15f;
-                        t.SetPositionAndRotation(desired, rot);
-                    }
-                    break;
+                var d = GameInput.LookDelta();
+                if (d.sqrMagnitude > 0.0001f) { _lastLook = Time.time; if (Player.InVehicle) { _userYaw += d.x; _userPitch = Mathf.Clamp(_userPitch - d.y, -25f, 40f); } else { Yaw += d.x; Pitch = Mathf.Clamp(Pitch - d.y, -70f, 70f); } }
+                if (GameInput.CameraToggle()) { if (Player.InVehicle) VehicleView = (View)(((int)VehicleView + 1) % 3); else FootView = FootView == View.FootThird ? View.FootFirst : View.FootThird; }
+                if (GameInput.FirstPersonToggle() && !Player.InVehicle) FootView = FootView == View.FootThird ? View.FootFirst : View.FootThird;
+            }
+            if (Player.InVehicle) UpdateVehicle(); else UpdateFoot();
+            if (_shake > 0.001f) { Cam.transform.position += UnityEngine.Random.insideUnitSphere * _shake * 0.12f; _shake = Mathf.MoveTowards(_shake, 0, Time.deltaTime * 2.5f); }
+        }
 
-                case CameraMode.VehicleChase:
-                    if (VehicleTarget == null) return;
-                    _chaseYawOffset += look.x;
-                    _pitch = Mathf.Clamp(_pitch - look.y, -10f, 60f);
-                    if (look.sqrMagnitude < 0.0001f) { _chaseYawOffset = Mathf.Lerp(_chaseYawOffset, 0, 2f * Time.deltaTime); _pitch = Mathf.Lerp(_pitch, 12f, Time.deltaTime); }
-                    float yaw = VehicleTarget.eulerAngles.y + _chaseYawOffset;
-                    var r2 = Quaternion.Euler(_pitch, yaw, 0);
-                    var piv = VehicleTarget.position + Vector3.up * 1.5f;
-                    var d2 = piv - r2 * Vector3.forward * _dist;
-                    t.position = Vector3.Lerp(t.position, d2, 1f - Mathf.Exp(-12f * Time.deltaTime));
-                    t.rotation = Quaternion.Slerp(t.rotation, Quaternion.LookRotation(piv - t.position, Vector3.up), 1f - Mathf.Exp(-14f * Time.deltaTime));
-                    break;
+        public void Shake(float amount) { _shake = Mathf.Max(_shake, Mathf.Clamp01(amount)); }
 
-                case CameraMode.VehicleCockpit:
-                case CameraMode.VehicleHood:
-                    var a = Mode == CameraMode.VehicleCockpit ? CockpitAnchor : HoodAnchor;
-                    if (a == null) return;
-                    _chaseYawOffset = Mathf.Clamp(_chaseYawOffset + look.x, -110f, 110f);
-                    if (look.sqrMagnitude < 0.0001f) _chaseYawOffset = Mathf.Lerp(_chaseYawOffset, 0, 3f * Time.deltaTime);
-                    t.SetPositionAndRotation(a.position, a.rotation * Quaternion.Euler(0, _chaseYawOffset, 0));
-                    break;
+        void UpdateVehicle()
+        {
+            var car = Player.Car; if (car == null) return; var t = car.transform; float speed = car.SpeedKmh;
+            if (Time.time - _lastLook > 2.0f) { _userYaw = Mathf.MoveTowardsAngle(_userYaw, 0, 140f * Time.deltaTime); _userPitch = Mathf.MoveTowards(_userPitch, 0, 40f * Time.deltaTime); }
+            float fovTarget = 62f + Mathf.Clamp01(speed / 200f) * 16f; _fov = Mathf.Lerp(_fov, fovTarget, 3f * Time.deltaTime); Cam.fieldOfView = _fov;
+            switch (VehicleView)
+            {
+                case View.Cockpit:
+                case View.Hood:
+                {
+                    var m = car.Model; var anchor = VehicleView == View.Cockpit ? m.DriverEye : m.HoodCam; var p = t.TransformPoint(new Vector3(anchor[0], anchor[1], anchor[2]));
+                    Cam.transform.position = p; Cam.transform.rotation = t.rotation * Quaternion.Euler(Mathf.Clamp(_userPitch * 0.7f, -25f, 30f), Mathf.Clamp(_userYaw, -110f, 110f), 0);
+                    Cam.nearClipPlane = 0.08f; return;
+                }
+                default:
+                {
+                    Cam.nearClipPlane = 0.2f;
+                    float dist = 6.6f + speed * 0.012f; float h = 2.35f + speed * 0.002f;
+                    float yaw = t.eulerAngles.y + _userYaw; var rot = Quaternion.Euler(10f + _userPitch, yaw, 0);
+                    var focus = t.position + Vector3.up * 1.15f + t.forward * Mathf.Clamp(speed * 0.01f, 0, 1.5f);
+                    var desired = focus - rot * Vector3.forward * dist + Vector3.up * (h - 1.15f);
+                    if (Physics.SphereCast(focus, 0.25f, (desired - focus).normalized, out var hit, dist + 0.5f, ~0, QueryTriggerInteraction.Ignore) && !hit.transform.IsChildOf(t)) desired = focus + (desired - focus).normalized * Mathf.Max(0.8f, hit.distance - 0.2f);
+                    Cam.transform.position = Vector3.SmoothDamp(Cam.transform.position, desired, ref _vel, 0.06f);
+                    Cam.transform.rotation = Quaternion.Slerp(Cam.transform.rotation, Quaternion.LookRotation(focus - Cam.transform.position, Vector3.up), 1f - Mathf.Exp(-14f * Time.deltaTime));
+                    return;
+                }
             }
         }
 
-        public void SnapTo(Transform target, float yaw)
+        void UpdateFoot()
         {
-            _yaw = yaw; _chaseYawOffset = 0;
-            if (cam != null && target != null)
-                cam.transform.SetPositionAndRotation(target.position - Quaternion.Euler(10, yaw, 0) * Vector3.forward * _dist + Vector3.up * 2f, Quaternion.Euler(10, yaw, 0));
+            var pt = Player.transform; Cam.fieldOfView = Mathf.Lerp(Cam.fieldOfView, 62f, 4f * Time.deltaTime);
+            var head = pt.position + Vector3.up * 1.62f; var rot = Quaternion.Euler(Pitch, Yaw, 0);
+            if (FootView == View.FootFirst) { Cam.nearClipPlane = 0.05f; Cam.transform.SetPositionAndRotation(head + rot * Vector3.forward * 0.12f, rot); Player.SetVisualVisible(false); return; }
+            Player.SetVisualVisible(true); Cam.nearClipPlane = 0.12f;
+            var pivot = head + Vector3.up * 0.12f; var desired = pivot + rot * new Vector3(0.55f, 0, -3.1f);
+            if (Physics.SphereCast(pivot, 0.2f, (desired - pivot).normalized, out var hit, (desired - pivot).magnitude, ~0, QueryTriggerInteraction.Ignore) && !hit.transform.IsChildOf(pt)) desired = pivot + (desired - pivot).normalized * Mathf.Max(0.5f, hit.distance - 0.15f);
+            Cam.transform.position = desired; Cam.transform.rotation = rot;
         }
+
+        /// <summary>Horizontal forward direction of the camera (for camera-relative movement).</summary>
+        public Vector3 FlatForward { get { var f = Cam != null ? Cam.transform.forward : Vector3.forward; f.y = 0; return f.sqrMagnitude < 1e-4f ? Vector3.forward : f.normalized; } }
     }
 }
