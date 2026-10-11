@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- Headless game server: hosts the Unity-free SPS.Core (world, traffic, law, NPCs, career) and talks to the Unreal client and the web UI over one WebSocket. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <NoWarn>CS0618;CS0649;CS0169;CS0414;CS0219</NoWarn>
+    <ServerGarbageCollector>false</ServerGarbageCollector>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/SwissPoliceSim/Core/**/*.cs" />
+    <Compile Include="**/*.cs" Exclude="obj/**;bin/**" />
+  </ItemGroup>
+</Project>

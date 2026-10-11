@@ -22,3 +22,7 @@ obj/
 # Import cache (downloaded swisstopo zips, OSM xml)
 .cache/
 !Tools/**/*.csproj
+Tools/SwissServer/bin/
+Tools/SwissServer/obj/
+Tools/SwissClientTest/bin/
+Tools/SwissClientTest/obj/

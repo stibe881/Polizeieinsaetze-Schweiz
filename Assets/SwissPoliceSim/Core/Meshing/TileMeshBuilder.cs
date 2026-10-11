@@ -23,6 +23,8 @@ namespace SwissPoliceSim.Core.Meshing
         public List<PoiFeature> Pois = new List<PoiFeature>();
         public List<BuildingFeature> Buildings = new List<BuildingFeature>();
         public MeshData RoadMesh, BuildingMesh, BuildingMeshDetail, WaterMesh, FurnitureMesh, RailMesh;
+        /// <summary>Only when a detail radius is used: simple-form buildings outside the radius (the detailed ones replace the simple ones inside it).</summary>
+        public MeshData BuildingMeshOutside;
     }
 
     public static class TileMeshBuilder
@@ -31,7 +33,7 @@ namespace SwissPoliceSim.Core.Meshing
         static readonly Lv95 AltstadtCentre = SwissCoordinateConverter.ToLv95(46.9480, 7.4474);
         const double AltstadtRadius = 480;
 
-        public static TileContent Build(byte[] containerBytes, bool meshes = true, bool detail = false)
+        public static TileContent Build(byte[] containerBytes, bool meshes = true, bool detail = false, double detailE = double.NaN, double detailN = double.NaN, double detailRadius = 0)
         {
             var c = TileContainer.Deserialize(containerBytes);
             var t = new TileContent { Tile = c.Tile };
@@ -81,14 +83,15 @@ namespace SwissPoliceSim.Core.Meshing
             t.BuildingMesh = bm;
             if (detail)
             {
-                var dm = BuildingMesher.NewMesh(); var party = PartyWalls.Compute(t.Buildings);
+                var dm = BuildingMesher.NewMesh(); var party = PartyWalls.Compute(t.Buildings); bool limited = detailRadius > 0 && !double.IsNaN(detailE); var outside = limited ? BuildingMesher.NewMesh() : null;
                 foreach (var b in t.Buildings)
                 {
                     var cen = PolygonUtil.Centroid(b.Footprint.Outer);
                     bool old = Math.Sqrt(Math.Pow(cen.X - AltstadtCentre.E, 2) + Math.Pow(cen.Y - AltstadtCentre.N, 2)) < AltstadtRadius;
+                    if (limited && Math.Sqrt((cen.X - detailE) * (cen.X - detailE) + (cen.Y - detailN) * (cen.Y - detailN)) > detailRadius) { BuildingMesher.Build(b, te, tn, outside, old ? BuildingStyle.Sandstone : BuildingStyle.Swiss); continue; }
                     BuildingMesher.Build(b, te, tn, dm, old ? BuildingStyle.Sandstone : BuildingStyle.Swiss, true, old, party[b]);
                 }
-                t.BuildingMeshDetail = dm;
+                t.BuildingMeshDetail = dm; t.BuildingMeshOutside = outside;
             }
             return t;
         }
