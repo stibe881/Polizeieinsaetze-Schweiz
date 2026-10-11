@@ -162,6 +162,8 @@ namespace SwissPoliceSim.Core.Import
                 var pts = new List<PointFeature>();
                 foreach (var p in feat.Points) if (p.Kind != PointKind.Tree && TileGrid.FromLv95(p.E, p.N) == t) pts.Add(p);
                 cont.Chunks["POIN"] = TileCodec.WritePoints(pts, t);
+                var tp = new List<PoiFeature>(); foreach (var p in feat.Pois) if (TileGrid.FromLv95(p.E, p.N) == t) tp.Add(p);
+                if (tp.Count > 0) cont.Chunks["POI"] = TileCodec.WritePois(tp, t);
 
                 var rails = new List<RailFeature>();
                 foreach (var r in feat.Rails) if (TileGrid.FromLv95(r.E[r.E.Length / 2], r.N[r.N.Length / 2]) == t) rails.Add(r);

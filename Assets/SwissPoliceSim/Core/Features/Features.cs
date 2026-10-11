@@ -71,8 +71,17 @@ namespace SwissPoliceSim.Core.Features
     }
 
     /// <summary>Everything extracted from one OSM dataset, projected to LV95.</summary>
+    public enum PoiKind : byte { Police = 0, Fuel = 1, Hospital = 2, FireStation = 3, Landmark = 4, Parking = 5, Station = 6 }
+
+    /// <summary>Named point of interest (police station, hospital, fuel station, ...) for the map, dispatch and navigation.</summary>
+    public sealed class PoiFeature
+    {
+        public PoiKind Kind; public double E, N; public string Name = ""; public long OsmId;
+    }
+
     public sealed class ExtractedFeatures
     {
+        public List<PoiFeature> Pois = new List<PoiFeature>();
         public List<RoadWay> Roads = new List<RoadWay>();
         public List<BuildingFeature> Buildings = new List<BuildingFeature>();
         public List<WaterFeature> Water = new List<WaterFeature>();

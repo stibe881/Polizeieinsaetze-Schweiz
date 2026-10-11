@@ -20,6 +20,7 @@ namespace SwissPoliceSim.Core.Meshing
         public List<TreeInstance> Trees = new List<TreeInstance>();
         public List<PointFeature> Points = new List<PointFeature>();
         public List<RailFeature> Rails = new List<RailFeature>();
+        public List<PoiFeature> Pois = new List<PoiFeature>();
         public List<BuildingFeature> Buildings = new List<BuildingFeature>();
         public MeshData RoadMesh, BuildingMesh, BuildingMeshDetail, WaterMesh, FurnitureMesh;
     }
@@ -40,6 +41,7 @@ namespace SwissPoliceSim.Core.Meshing
             if (c.TryGet("LAND", out var land)) t.LandUse = land;
             if (c.TryGet("TREE", out var tree)) t.Trees = TileCodec.ReadTrees(tree, c.Tile);
             if (c.TryGet("POIN", out var poin)) t.Points = TileCodec.ReadPoints(poin, c.Tile);
+            if (c.TryGet("POI", out var poi)) t.Pois = TileCodec.ReadPois(poi, c.Tile);
             if (c.TryGet("RAIL", out var rail)) t.Rails = TileCodec.ReadRails(rail, c.Tile);
             if (c.TryGet("BLDG", out var bl)) t.Buildings = TileCodec.ReadBuildings(bl, c.Tile);
             if (c.TryGet("WMSH", out var wm)) t.WaterMesh = MeshDataIO.Read(wm);

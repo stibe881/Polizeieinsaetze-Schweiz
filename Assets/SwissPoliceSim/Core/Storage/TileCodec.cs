@@ -184,6 +184,22 @@ namespace SwissPoliceSim.Core.Storage
             }
         }
 
+        public static byte[] WritePois(IList<PoiFeature> pois, TileId t)
+        {
+            double oe = TileGrid.MinE(t), on = TileGrid.MinN(t);
+            using (var ms = new MemoryStream())
+            {
+                using (var w = W(ms)) { w.Write(pois.Count); foreach (var p in pois) { w.Write((byte)p.Kind); w.Write((float)(p.E - oe)); w.Write((float)(p.N - on)); w.Write(p.OsmId); w.Write(p.Name ?? ""); } }
+                return ms.ToArray();
+            }
+        }
+
+        public static List<PoiFeature> ReadPois(byte[] data, TileId t)
+        {
+            double oe = TileGrid.MinE(t), on = TileGrid.MinN(t);
+            using (var r = R(data)) { int n = r.ReadInt32(); var l = new List<PoiFeature>(n); for (int i = 0; i < n; i++) l.Add(new PoiFeature { Kind = (PoiKind)r.ReadByte(), E = oe + r.ReadSingle(), N = on + r.ReadSingle(), OsmId = r.ReadInt64(), Name = r.ReadString() }); return l; }
+        }
+
         public static byte[] WriteRails(IList<RailFeature> rails, TileId t)
         {
             double oe = TileGrid.MinE(t), on = TileGrid.MinN(t);

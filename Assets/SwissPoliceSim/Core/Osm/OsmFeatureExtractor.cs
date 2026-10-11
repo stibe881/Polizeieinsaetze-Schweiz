@@ -34,6 +34,7 @@ namespace SwissPoliceSim.Core.Osm
                 if (t.ContainsKey("railway")) ExtractRail(w, lv, res);
                 if (t.ContainsKey("waterway")) ExtractWaterway(w, lv, res);
                 if (Tag(t, "natural") == "tree_row") ExtractTreeRow(w, lv, res);
+                ExtractPoi(w.Id, t, () => { double se = 0, sn = 0; int c = 0; foreach (long id in w.Nodes) if (lv.TryGetValue(id, out var q)) { se += q.X; sn += q.Y; c++; } return c == 0 ? (false, 0, 0) : (true, se / c, sn / c); }, res);
 
                 bool closed = w.Nodes.Count >= 4 && w.Nodes[0] == w.Nodes[w.Nodes.Count - 1];
                 if (!closed) continue;
@@ -55,7 +56,7 @@ namespace SwissPoliceSim.Core.Osm
             }
 
             foreach (var n in ds.Nodes.Values)
-                if (n.Tags != null) ExtractPoint(n, lv[n.Id], res);
+                if (n.Tags != null) { ExtractPoint(n, lv[n.Id], res); var q0 = lv[n.Id]; ExtractPoi(n.Id, n.Tags, () => (true, q0.X, q0.Y), res); }
 
             return res;
         }
@@ -169,6 +170,23 @@ namespace SwissPoliceSim.Core.Osm
             foreach (long id in nodes) if (lv.TryGetValue(id, out var p)) { el.Add(p.X); nl.Add(p.Y); }
             e = el.ToArray(); n = nl.ToArray();
             return e.Length >= 2;
+        }
+
+        // ------------------------------------------------------------------ points of interest
+
+        static void ExtractPoi(long id, Dictionary<string, string> t, Func<(bool ok, double e, double n)> where, ExtractedFeatures res)
+        {
+            if (t == null || t.Count == 0) return;
+            string am = Tag(t, "amenity"); PoiKind? k = null;
+            if (am == "police") k = PoiKind.Police;
+            else if (am == "fuel") k = PoiKind.Fuel;
+            else if (am == "hospital") k = PoiKind.Hospital;
+            else if (am == "fire_station") k = PoiKind.FireStation;
+            else if (Tag(t, "railway") == "station" && Tag(t, "name") != null) k = PoiKind.Station;
+            else if ((Tag(t, "tourism") == "attraction" || Tag(t, "tourism") == "museum" || Tag(t, "historic") == "castle" || Tag(t, "historic") == "monument") && Tag(t, "name") != null) k = PoiKind.Landmark;
+            if (k == null) return;
+            var p = where(); if (!p.ok) return;
+            res.Pois.Add(new PoiFeature { Kind = k.Value, E = p.e, N = p.n, Name = Tag(t, "name") ?? "", OsmId = id });
         }
 
         // ------------------------------------------------------------------ points
