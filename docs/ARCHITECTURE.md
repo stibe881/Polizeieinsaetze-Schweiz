@@ -1,6 +1,6 @@
 # Architektur – Swiss Police Simulator
 
-Ziel: die **gesamte Schweiz** (≈ 41 285 km²) im Massstab 1:1. Phase 1 liefert das technische Fundament und den Pilotraum Bern (5 × 5 km), die Architektur ist aber von Anfang an für das ganze Land ausgelegt.
+Ziel: die **gesamte Schweiz** (≈ 41 285 km²) im Massstab 1:1. Gebaut ist der Pilotraum Bern (5 × 5 km); die Architektur ist von Anfang an für das ganze Land ausgelegt.
 
 ## Engine & Version
 
@@ -29,22 +29,20 @@ Tools/
 * Unity-Achsen: x = Ost, z = Nord, y = Höhe ü. M. (**y wird nie verschoben**).
 * **Floating Origin** (`WorldFrame`, `WorldOrigin`, `FloatingOrigin`): Der Unity-Nullpunkt wird auf ein Vielfaches von 500 m verschoben, sobald das Ziel > 1500 m entfernt ist; dabei werden alle Root-Objekte der Szene um den Offset versetzt.
 
-## Kachelraster & Streaming
+## Kachelraster, Datenformate, Streaming
 
-* Weltzelle = **1 km × 1 km**, ausgerichtet am LV95-Kilometergitter. `TileId = (floor(E/1000), floor(N/1000))` – identisch zur Nummerierung der swisstopo-Kacheln (z. B. `2600-1199`).
-* Pro Kachel zwei Binärdateien in `StreamingAssets/SwissWorld/`: `terrain/X-Y.spt` (257² Höhenwerte, 16 Bit quantisiert, ~132 kB) und `roads/X-Y.spr` (Ways mit Knoten-IDs, Höhen, Attributen). Strassen werden an Kachelgrenzen geteilt; die Grenzknoten sind geteilt, das Netz bleibt verbunden.
-* `TileStreamingManager`: Radius um das Ziel, nächste Kacheln zuerst, Dateizugriff + Geometrieberechnung (Strassenmesh, Splat-Map) auf Worker-Threads, Erzeugung der Unity-Objekte auf dem Main-Thread (max. 1 Kachel/Frame), Unload mit Hysterese.
-* Terrain: ein `Terrain` pro Kachel, Nachbarn verknüpft, 3 Texturebenen (Gras/Fels/Schnee) nach Neigung und Höhe.
-* Strassen: Mesh-Band pro Kachel (3 Submeshes: Autobahn/Autostrasse, Hauptstrassen, übrige), alle 8 m abgetastet; **Brücken** behalten ihre gebackene, lineare Höhe (z. B. über die Aare), Tunnel folgen vorerst der Oberfläche.
-* Austauschpunkt: `TileStreamingManager.LoadTileData` ist die einzige Stelle, die Dateien liest. Ein Addressables-Provider ersetzt sie in einer späteren Phase (siehe Roadmap).
+* Weltzelle = **1 km × 1 km**, `TileId = (floor(E/1000), floor(N/1000))` (swisstopo-Nummerierung).
+* **Kachel-Container `.sptile`** mit Chunks: `TERR` (Gelände, SPT2: 5-cm-Stufen, Median-Edge-Detector-Vorhersage, Zig-Zag-Varints), `TERC` (Grobgelände), `ROAD`, `BLDG`, `WATR`/`WMSH`, `TREE`, `LAND`, `POIN`/`POI`, `RAIL`.
+* **Makro-Blöcke `.spm`** (8 km) für die Fernsicht, **Regionspakete `.sprg`** (Index + Direktzugriff), `admin.spj` (Kantons-/Gemeindegrenzen), `arterial.sprg` (Routing-Skelett).
+* `TileStreamer`: Ringe (Detail/Mittel/Fern) um den Fokus, Datei-/Meshberechnung (`TileMeshBuilder`) auf Worker-Threads mit Frame-Budget, Erzeugung der Unity-Meshes auf dem Main-Thread, Colliders nur nahe am Spieler, LRU-Entladen.
+* `TreeRenderer`: Instancing in 3 LODs (Laubkarten), `MacroRing`: Fernterrain aus Makro-Blöcken.
+* Fensterrender: eigene URP-Shader (`SPS/Lit`, `SPS/Terrain`, `SPS/Water`) mit Vertexfarbe (sRGB→linear), Schatten-/Tiefenpässe aus URP/Lit.
 
-## Mehrstufiges Detailmodell (Ziel)
+## Skalierung (Gelände ≈ 5.5 GB → Format-Optimierung, Routing nicht im RAM)
 
-| Stufe | Inhalt | Status |
-|---|---|---|
-| C – Landschaft | Gelände (swissALTI3D), Strassen, später Wald/Wasser | Phase 1: Gelände + Strassen |
-| B – Dörfer/Agglomeration | OSM-/swissBUILDINGS3D-Gebäude, Prozedural | Phase 3 |
-| A – Hochdetaillierte Städte | Handmodellierte Wahrzeichen, Ampeln, Signalisation | Phase 2 (Bern) / 7 |
+* Gelände: SPT2 + Grobchunk, geschätzt ≈ 2.5–3 GB landesweit (Details `docs/DATA_SOURCES.md`).
+* Routing: `HierarchicalRouter` – Skelett aus Hauptstrassen im RAM, Kachelgraphen lazy nur entlang der Route (LRU); Namens-/Abbiegeanweisungen aus `NavigationGuide`.
+* Verkehrsnetz (`TrafficNetwork`) wird auf einem 5×5-Kachel-Fenster um den Spieler aufgebaut und mitgeführt (`Rebase`).
 
 ## Navigation
 
@@ -55,6 +53,13 @@ Tools/
 * ≥ 60 FPS auf Mittelklasse-PC, 25 geladene Kacheln (5 × 5 km).
 * Pro Kachel Ziel < 40 MB RAM; Kachel-Erzeugung < 8 ms Main-Thread-Anteil (heute **nicht gemessen** – Messung steht für die erste Unity-Ausführung an).
 
-## Rechtliches / Polizeilogik (ab Phase 2/5)
+## Spielschichten (Core, ohne Unity)
 
-Noch nicht implementiert. Vorgabe: Jede Rechtsregel wird mit Status **verifiziert / vereinfachte Spielregel / unverifizierte Annahme** und Quellenangabe (fedlex.admin.ch, kantonale Polizeigesetze) im Datensatz geführt; keine erfundenen Artikel.
+`Legal` (Normen mit Verifikationsstatus, Regelwerk `LegalSystem`, `ObvCatalog` aus Gesetzestext) · `Npc` (NLU, `NpcMind`, `Citizen`) · `Game` (`Encounter`, `Career`, `Dispatch`, `Reports`, `SaveGame`, `Pursuit`, `GameClock`) · `Police` (Korps, Zuständigkeit, `PoliceComputer`) · `Traffic` (IDM, Ampeln, Fussgänger) · `Roads` (Graph, Router, Navigation) · `Meshing`/`Textures` (prozedurale Geometrie, in Unity wie im Software-Renderer identisch genutzt).
+
+## Unity-Laufzeit (`Runtime/`)
+
+`GameBootstrap` baut die Szene programmatisch (kein handgebautes Scene-Asset nötig) → `GameSession` (Uhr, Korps, Karriere, Computer) mit Controllern für Einsätze, Kontrollen/Radar, Begegnungen, Verfolgung; UI per IMGUI (`Gui`, `Hud`, `Windows`, `UiRoot`); Eingabe über die klassische Input-Klasse (kein Input-System-Package). Alles Unity-Abhängige ist von `Core` getrennt.
+
+## Rechtliches
+Siehe `docs/LEGAL_STATUS.md`.
