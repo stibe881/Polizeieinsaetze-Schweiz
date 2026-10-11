@@ -138,6 +138,7 @@ struct FLinearColor { float R, G, B, A; FLinearColor(float r = 0, float g = 0, f
 
 struct FMath
 {
+	static bool IsFinite(float V) { return std::isfinite(V); }
 	template <class T> static T Clamp(T v, T a, T b) { return v < a ? a : (v > b ? b : v); }
 	template <class T> static T Min(T a, T b) { return a < b ? a : b; } template <class T> static T Max(T a, T b) { return a > b ? a : b; }
 	template <class T> static T Abs(T a) { return a < 0 ? -a : a; } template <class T> static T Sign(T a) { return a < 0 ? -1 : 1; }

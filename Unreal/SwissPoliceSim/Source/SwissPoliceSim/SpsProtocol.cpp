@@ -25,7 +25,17 @@ namespace
 		const bool bUv2 = (Flags & 1) != 0, bBig = (Flags & 2) != 0;
 		M.Vertices.SetNumUninitialized(V); M.Normals.SetNumUninitialized(V); M.UV0.SetNumUninitialized(V); M.Colors.SetNumUninitialized(V);
 		if (!R.Has(V * 12 * 2 + V * 8 + V * 4)) return false;
-		for (int32 i = 0; i < V; i++) { const float X = R.F32(), Y = R.F32(), Z = R.F32(); M.Vertices[i] = SpsAxis(X, Y, Z) * 100.0; }
+		for (int32 i = 0; i < V; i++)
+		{
+			const float X = R.F32(), Y = R.F32(), Z = R.F32();
+			// Schutz: ein Renderer-Absturz durch NaN/Unendlich/absurde Werte ist nicht abfangbar, also vorher verwerfen
+			if (!FMath::IsFinite(X) || !FMath::IsFinite(Y) || !FMath::IsFinite(Z) || FMath::Abs(X) > 1.0e5f || FMath::Abs(Y) > 1.0e5f || FMath::Abs(Z) > 1.0e5f)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[SPS] Mesh verworfen: Vertex %d/%d ausserhalb des gueltigen Bereichs (%g, %g, %g)"), i, V, X, Y, Z);
+				return false;
+			}
+			M.Vertices[i] = SpsAxis(X, Y, Z) * 100.0;
+		}
 		for (int32 i = 0; i < V; i++) { const float X = R.F32(), Y = R.F32(), Z = R.F32(); M.Normals[i] = SpsAxis(X, Y, Z); }
 		for (int32 i = 0; i < V; i++) { const float U = R.F32(), Vv = R.F32(); M.UV0[i] = FVector2D(U, 1.0f - Vv); }
 		for (int32 i = 0; i < V; i++) { const uint8 Rr = R.U8(), G = R.U8(), B = R.U8(), A = R.U8(); M.Colors[i] = FColor(Rr, G, B, A); }

@@ -228,6 +228,7 @@ void ASpsClient::ProcessTiles(double BudgetSeconds)
 		}
 		if (TileQueue.Num() == 0) return;
 		FSpsTileData D = MoveTemp(TileQueue[0]); TileQueue.RemoveAt(0);
+		UE_LOG(LogTemp, Warning, TEXT("[SPS] Tile %d/%d (Qualitaet %d, %d Meshes, Ursprung %.0f/%.0f)"), D.X, D.Y, static_cast<int32>(D.Quality), D.Meshes.Num(), OriginE, OriginN);
 		const FIntPoint K(D.X, D.Y); TObjectPtr<ASpsTile>* Found = Tiles.Find(K); ASpsTile* Tile = Found ? Found->Get() : nullptr;
 		if (!Tile) { Tile = GetWorld()->SpawnActor<ASpsTile>(FVector::ZeroVector, FRotator::ZeroRotator); Tiles.Add(K, Tile); }
 		if (D.Trees.Num() > 0) { PendingTrees.RemoveAll([K](const FPendingTrees& P) { return P.Tile == K; }); FPendingTrees P; P.Tile = K; P.Quality = D.Quality; P.Trees = D.Trees; PendingTrees.Add(MoveTemp(P)); }
