@@ -19,7 +19,7 @@ function connect() {
 function onText(m) {
   switch (m.t) {
     case 'welcome': W = m; if (!m.playing) showMenu(); break;
-    case 'started': started = true; $('menu').classList.add('hidden'); $('hud').classList.remove('hidden'); if (!embedded) sim.start(m); closeWin(); break;
+    case 'started': started = true; $('menu').classList.add('hidden'); $('hud').classList.remove('hidden'); if (!embedded) sim.start(m); closeWin(); send({ t: 'ui', focus: false }); break;
     case 'state': S = m; renderHud(); if (curWin === 'career' || curWin === 'pause') refreshWin(); break;
     case 'note': toast(m); break;
     case 'encounter': enc = m.enc; if (m.open && enc && curWin !== 'encounter') openWin('encounter'); else if (curWin === 'encounter') updateEncounter(); break;
@@ -190,7 +190,7 @@ function renderMapResults() { const r = $('mres'); if (!r) return; r.innerHTML =
 
 // ---------------------------------------------------------------- menu
 function showMenu() {
-  const m = $('menu'); m.classList.remove('hidden'); let sel = 'KAPO_BE', muni = false;
+  const m = $('menu'); m.classList.remove('hidden'); send({ t: 'ui', focus: true }); let sel = 'KAPO_BE', muni = false;
   const draw = () => {
     const list = W.corps.filter(c => (c.level === 'Municipal') === muni);
     m.innerHTML = `<h1>Swiss Police Simulator</h1><div class="dim" style="font-size:20px;margin-bottom:6vh">Realistische Polizeisimulation · Recht nach Fedlex · Pilotgebiet: ${esc(W.world)}</div><div class="stripe"></div><div style="padding-top:3vh"><div class="row"><span class="dim">Korps wählen</span><button id="mtoggle">${muni ? 'Stadtpolizeien' : 'Kantonspolizeien'}</button></div><div class="corps">${list.map(c => `<button class="toggle ${c.id === sel ? 'on' : ''}" data-id="${c.id}">${esc(c.name)}</button>`).join('')}</div><div class="row" style="margin-top:14px"><button class="good" id="mnew" style="font-size:18px;padding:12px 28px">Neues Spiel</button>${W.slots.filter(s => s.exists).map(s => `<button data-ld="${s.slot}">Laden ${s.slot}: ${esc(s.info)}</button>`).join('')}</div></div><div class="dim small" style="margin-top:auto">${esc(W.attribution)} · Gesetze: Fedlex</div>`;

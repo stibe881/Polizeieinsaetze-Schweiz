@@ -309,8 +309,8 @@ struct IWebSocket
 };
 struct FWebSocketsModule { TSharedRef<IWebSocket> CreateWebSocket(const FString&) { return MakeShared<IWebSocket>(); } };
 // slate
-struct EVisibility { int V = 0; static const EVisibility Collapsed; static const EVisibility SelfHitTestInvisible; bool operator!=(const EVisibility& O) const { return V != O.V; } bool operator==(const EVisibility& O) const { return V == O.V; } };
-inline const EVisibility EVisibility::Collapsed{1}; inline const EVisibility EVisibility::SelfHitTestInvisible{2};
+struct EVisibility { int V = 0; static const EVisibility Collapsed; static const EVisibility SelfHitTestInvisible; static const EVisibility Visible; static const EVisibility HitTestInvisible; bool operator!=(const EVisibility& O) const { return V != O.V; } bool operator==(const EVisibility& O) const { return V == O.V; } };
+inline const EVisibility EVisibility::Visible{3}; inline const EVisibility EVisibility::HitTestInvisible{4}; inline const EVisibility EVisibility::Collapsed{1}; inline const EVisibility EVisibility::SelfHitTestInvisible{2};
 struct SWidget { EVisibility GetVisibility() const { return {}; } void SetVisibility(EVisibility) {} }; struct SWeakWidget; struct SWebBrowser : SWidget {};
 template <class W> struct SArgs { SArgs& InitialURL(const FString&) { return *this; } SArgs& ShowControls(bool) { return *this; } SArgs& ShowAddressBar(bool) { return *this; } SArgs& ShowErrorMessage(bool) { return *this; } SArgs& SupportsTransparency(bool) { return *this; } SArgs& BackgroundColor(FColor) { return *this; } template <class D> SArgs& OnLoadCompleted(D) { return *this; } template <class D> SArgs& OnLoadError(D) { return *this; } SArgs& PossiblyNullContent(TSharedPtr<SWidget>) { return *this; } };
 struct SWeakWidget : SWidget {};
@@ -331,3 +331,5 @@ struct IHttpRequest;
 struct FHttpRequestCompleteDelegate { template <class O, class F> void BindUObject(O*, F) {} };
 struct IHttpRequest { void SetURL(const FString&) {} void SetVerb(const FString&) {} FHttpRequestCompleteDelegate& OnProcessRequestComplete() { static FHttpRequestCompleteDelegate d; return d; } bool ProcessRequest() { return true; } };
 struct FHttpModule { static FHttpModule& Get() { static FHttpModule m; return m; } TSharedRef<IHttpRequest> CreateRequest() { return MakeShared<IHttpRequest>(); } };
+
+struct FSlateApplication { static bool IsInitialized() { return true; } static FSlateApplication& Get() { static FSlateApplication a; return a; } void SetAllUserFocusToGameViewport() {} };

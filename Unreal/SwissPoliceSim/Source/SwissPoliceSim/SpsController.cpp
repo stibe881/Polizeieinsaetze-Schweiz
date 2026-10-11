@@ -12,6 +12,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Components/InputComponent.h"
 #include "InputCoreTypes.h"
+#include "Framework/Application/SlateApplication.h"
 
 ASpsController::ASpsController()
 {
@@ -51,6 +52,10 @@ void ASpsController::SetUiFocus(bool bOn)
 {
 	bUiFocus = bOn; bShowMouseCursor = bOn;
 	SetIgnoreLookInput(bOn); SetIgnoreMoveInput(bOn);
+	// Das Overlay liegt ueber dem ganzen Viewport. Nur solange ein Fenster/Menue offen ist, darf es Mausklicks fangen; sonst gehen Maus (Umschauen) und Klicks ans Spiel.
+	if (BrowserHolder.IsValid()) BrowserHolder->SetVisibility(bOn ? EVisibility::Visible : EVisibility::HitTestInvisible);
+	if (!bOn && FSlateApplication::IsInitialized()) FSlateApplication::Get().SetAllUserFocusToGameViewport();
+	UE_LOG(LogTemp, Warning, TEXT("[SPS] UI-Fokus %s"), bOn ? TEXT("an (Menue/Fenster)") : TEXT("aus (Spiel hat Maus und Tasten)"));
 	if (bOn) { FInputModeUIOnly Mode; if (Browser.IsValid()) Mode.SetWidgetToFocus(Browser); Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock); SetInputMode(Mode); }
 	else SetInputMode(FInputModeGameOnly());
 }
