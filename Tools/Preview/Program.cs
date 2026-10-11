@@ -30,6 +30,7 @@ static class Program
         var centre = SwissCoordinateConverter.ToLv95(46.94658, 7.44410);   // Bundesplatz
         OE = centre.E; ON = centre.N;
         var r = new SoftRenderer(w, h, ss);
+        try { if (Environment.GetEnvironmentVariable("NOHDRI") == null) r.SkyMap = Hdri.Load("Assets/SwissPoliceSim/Resources/Sky/sky_day.hdr"); } catch (Exception ex) { Console.WriteLine("HDRI unavailable: " + ex.Message); }
         var mats = new Mats();
         if (scene.StartsWith("car")) { CarScene(r, mats, scene); }
         else if (scene == "trees") { TreeScene(r, mats); }
@@ -41,26 +42,32 @@ static class Program
         return 0;
     }
 
+    static Mat Pbr(string set, float perM, float boost, Func<Mat> fallback, bool dbl = false)
+    {
+        if (Environment.GetEnvironmentVariable("NOPBR") != null) return fallback();
+        try { return PbrLoader.Make(set, perM, set.StartsWith("Asphalt") ? boost * 0.8f : boost, true, dbl); } catch (Exception ex) { Console.WriteLine("PBR set " + set + " unavailable: " + ex.Message); return fallback(); }
+    }
+
     sealed class Mats
     {
-        public Mat Grass = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Grass()), UvScale = 2.5f, Specular = 0 };
-        public Mat Asphalt0 = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Asphalt()), Specular = 0.12f, Gloss = 20 };
-        public Mat Asphalt1 = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Asphalt()), Specular = 0.12f, Gloss = 20 };
-        public Mat Asphalt2 = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Asphalt()), Specular = 0.1f, Gloss = 20 };
-        public Mat Sidewalk = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Pavement()), Specular = 0.05f };
+        public Mat Grass = Pbr("Grass004", 0.25f, 1.3f, () => new Mat { Mips = Mat.MakeMips(ProceduralTextures.Grass()), UvScale = 2.5f, Specular = 0 });
+        public Mat Asphalt0 = Pbr("Asphalt031", 0.25f, 1.5f, () => new Mat { Mips = Mat.MakeMips(ProceduralTextures.Asphalt()), Specular = 0.12f, Gloss = 20 });
+        public Mat Asphalt1 = Pbr("Asphalt004", 0.25f, 1.6f, () => new Mat { Mips = Mat.MakeMips(ProceduralTextures.Asphalt()), Specular = 0.12f, Gloss = 20 });
+        public Mat Asphalt2 = Pbr("Asphalt004", 0.25f, 1.5f, () => new Mat { Mips = Mat.MakeMips(ProceduralTextures.Asphalt()), Specular = 0.1f, Gloss = 20 });
+        public Mat Sidewalk = Pbr("PavingStones070", 0.5f, 1.3f, () => new Mat { Mips = Mat.MakeMips(ProceduralTextures.Pavement()), Specular = 0.05f });
         public Mat MarkWhite = new Mat { UseVertexColor = true, Base = new Vector3(0.85f), Specular = 0.05f };
         public Mat Facade0 = new Mat { Mips = Mat.MakeMips(ProceduralTextures.FacadeResidential()), Specular = 0.03f };
         public Mat Facade1 = new Mat { Mips = Mat.MakeMips(ProceduralTextures.FacadeCommercial()), Specular = 0.03f };
         public Mat Facade2 = new Mat { Mips = Mat.MakeMips(ProceduralTextures.FacadeIndustrial()), Specular = 0.03f };
-        public Mat RoofPitched = new Mat { Mips = Mat.MakeMips(ProceduralTextures.RoofTiles()), Specular = 0.06f, DoubleSided = true };
-        public Mat RoofFlat = new Mat { Mips = Mat.MakeMips(ProceduralTextures.FlatRoof()), Specular = 0.02f, DoubleSided = true };
-        public Mat Plaster = new Mat { Mips = Mat.MakeMips(ProceduralTextures.PlasterWall()), Specular = 0.02f };
+        public Mat RoofPitched = Pbr("RoofingTiles014A", 0.5f, 1.5f, () => new Mat { Mips = Mat.MakeMips(ProceduralTextures.RoofTiles()), Specular = 0.06f, DoubleSided = true }, true);
+        public Mat RoofFlat = Pbr("Gravel022", 0.5f, 1.4f, () => new Mat { Mips = Mat.MakeMips(ProceduralTextures.FlatRoof()), Specular = 0.02f, DoubleSided = true }, true);
+        public Mat Plaster = Pbr("Plaster003", 0.4f, 1.7f, () => new Mat { Mips = Mat.MakeMips(ProceduralTextures.PlasterWall()), Specular = 0.02f });
         public Mat Window = new Mat { Mips = Mat.MakeMips(ProceduralTextures.WindowAtlas()), Specular = 0.55f, Gloss = 90, Sky = true };
-        public Mat Trim = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Stone()), Specular = 0.03f, DoubleSided = true };
+        public Mat Trim = Pbr("Concrete025", 0.5f, 1.6f, () => new Mat { Mips = Mat.MakeMips(ProceduralTextures.Stone()), Specular = 0.03f, DoubleSided = true }, true);
         public Mat ShutterM = new Mat { Mips = Mat.MakeMips(ProceduralTextures.ShutterSlats()), Specular = 0.05f, DoubleSided = true };
         public Mat Railing = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Railing()), CutoutAlpha = true, DoubleSided = true };
-        public Mat Gravel = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Gravel()), UvScale = 1f };
-        public Mat Concrete = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Stone()), UseVertexColor = true };
+        public Mat Gravel = Pbr("Gravel022", 0.5f, 1.2f, () => new Mat { Mips = Mat.MakeMips(ProceduralTextures.Gravel()), UvScale = 1f });
+        public Mat Concrete = Pbr("Concrete025", 0.5f, 1.4f, () => new Mat { Mips = Mat.MakeMips(ProceduralTextures.Stone()), UseVertexColor = true });
         public Mat Water = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Water()), Alpha = 0.82f, Specular = 0.9f, Gloss = 180, Sky = true, UseVertexColor = false, DoubleSided = true };
         public Mat Metal = new Mat { UseVertexColor = true, Specular = 0.3f, Gloss = 30 };
         public Mat Lens = new Mat { UseVertexColor = true, Emissive = new Vector3(0.35f), Specular = 0.5f };

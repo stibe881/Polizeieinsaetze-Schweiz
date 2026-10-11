@@ -16,6 +16,14 @@ Shader "SPS/Lit"
         [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull", Float) = 2
         [Toggle] _SignalLens ("Traffic signal lens (Uv2 driven)", Float) = 0
         _Wet ("Wetness (rain)", Range(0,1)) = 0
+        [Toggle] _Pbr ("Photo PBR set (world-space triplanar)", Float) = 0
+        [NoScaleOffset] _NormalMap ("Normal (GL)", 2D) = "bump" {}
+        [NoScaleOffset] _RoughMap ("Roughness", 2D) = "white" {}
+        [NoScaleOffset] _AOMap ("Ambient occlusion", 2D) = "white" {}
+        _TriScale ("Texture repeats per metre", Float) = 0.25
+        _NormalStrength ("Normal strength", Range(0,2)) = 1
+        _PbrBoost ("Albedo boost", Range(0.5,3)) = 1
+        _SmoothScale ("Smoothness scale (PBR)", Range(0,1.5)) = 1
     }
 
     SubShader
@@ -48,6 +56,7 @@ Shader "SPS/Lit"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
             TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
+            TEXTURE2D(_NormalMap); TEXTURE2D(_RoughMap); TEXTURE2D(_AOMap);
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _BaseMap_ST;
@@ -60,6 +69,11 @@ Shader "SPS/Lit"
                 half _Cull;
                 half _SignalLens;
                 half _Wet;
+                half _Pbr;
+                half _TriScale;
+                half _NormalStrength;
+                half _PbrBoost;
+                half _SmoothScale;
             CBUFFER_END
 
             float _SpsTime;          // global: seconds, drives the signal lenses
@@ -114,6 +128,24 @@ Shader "SPS/Lit"
                 half4 tex = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv);
                 half3 vcol = lerp(half3(1,1,1), SRGBToLinear(IN.color.rgb), _UseVertexColor);
                 half3 albedo = tex.rgb * _BaseColor.rgb * vcol;
+                half3 nGeo = normalize(IN.normalWS) * ((facing > 0) ? 1 : -1);
+                half3 pbrNormal = nGeo; half pbrRough = 1; half pbrAO = 1;
+                if (_Pbr > 0.5)
+                {
+                    // world-space triplanar mapping: independent of the mesh UVs, seamless across tiles (origin shifts are multiples of 500 m)
+                    float3 pw = IN.positionWS;
+                    half3 bw = pow(abs(nGeo), 4); bw /= (bw.x + bw.y + bw.z);
+                    float2 uvX = pw.zy * _TriScale, uvY = pw.xz * _TriScale, uvZ = pw.xy * _TriScale;
+                    half3 c = half3(0,0,0); half r = 0, ao = 0;
+                    half3 tx = half3(0,0,1), ty = half3(0,0,1), tz = half3(0,0,1);
+                    if (bw.x > 0.04) { c += SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvX).rgb * bw.x; r += SAMPLE_TEXTURE2D(_RoughMap, sampler_BaseMap, uvX).r * bw.x; ao += SAMPLE_TEXTURE2D(_AOMap, sampler_BaseMap, uvX).r * bw.x; tx = UnpackNormalScale(SAMPLE_TEXTURE2D(_NormalMap, sampler_BaseMap, uvX), _NormalStrength); }
+                    if (bw.y > 0.04) { c += SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvY).rgb * bw.y; r += SAMPLE_TEXTURE2D(_RoughMap, sampler_BaseMap, uvY).r * bw.y; ao += SAMPLE_TEXTURE2D(_AOMap, sampler_BaseMap, uvY).r * bw.y; ty = UnpackNormalScale(SAMPLE_TEXTURE2D(_NormalMap, sampler_BaseMap, uvY), _NormalStrength); }
+                    if (bw.z > 0.04) { c += SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvZ).rgb * bw.z; r += SAMPLE_TEXTURE2D(_RoughMap, sampler_BaseMap, uvZ).r * bw.z; ao += SAMPLE_TEXTURE2D(_AOMap, sampler_BaseMap, uvZ).r * bw.z; tz = UnpackNormalScale(SAMPLE_TEXTURE2D(_NormalMap, sampler_BaseMap, uvZ), _NormalStrength); }
+                    half wsum = (bw.x > 0.04 ? bw.x : 0) + (bw.y > 0.04 ? bw.y : 0) + (bw.z > 0.04 ? bw.z : 0); c /= wsum; r /= wsum; ao /= wsum;
+                    tx = half3(tx.xy + nGeo.zy, abs(tx.z) * nGeo.x); ty = half3(ty.xy + nGeo.xz, abs(ty.z) * nGeo.y); tz = half3(tz.xy + nGeo.xy, abs(tz.z) * nGeo.z);
+                    pbrNormal = normalize(tx.zyx * bw.x + ty.xzy * bw.y + tz.xyz * bw.z);
+                    albedo = c * _PbrBoost * _BaseColor.rgb * vcol; pbrRough = r; pbrAO = ao;
+                }
                 half alpha = tex.a * _BaseColor.a;
                 #if defined(_ALPHATEST_ON)
                     clip(alpha - _Cutoff);
@@ -132,11 +164,11 @@ Shader "SPS/Lit"
                     albedo *= lit ? 1.0 : 0.15;
                 }
 
-                half3 normalWS = normalize(IN.normalWS);
-                normalWS *= (facing > 0) ? 1 : -1;
+                half3 normalWS = pbrNormal;
 
                 // rain: darker, glossier surfaces
-                half smoothV = saturate(lerp(_Smoothness, max(_Smoothness, 0.88), _Wet));
+                half baseSmooth = _Pbr > 0.5 ? saturate((1.0 - pbrRough) * _SmoothScale) : _Smoothness;
+                half smoothV = saturate(lerp(baseSmooth, max(baseSmooth, 0.88), _Wet));
                 albedo *= lerp(1.0, 0.72, _Wet);
 
                 InputData inputData = (InputData)0;
@@ -156,7 +188,7 @@ Shader "SPS/Lit"
                 s.metallic = _Metallic;
                 s.specular = half3(0, 0, 0);
                 s.smoothness = smoothV;
-                s.occlusion = 1;
+                s.occlusion = pbrAO;
                 s.emission = emission;
                 s.alpha = alpha;
                 s.normalTS = half3(0, 0, 1);

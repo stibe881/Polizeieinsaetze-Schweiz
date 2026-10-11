@@ -115,6 +115,31 @@ namespace SwissPoliceSim.Vehicles
 
         public static CarLivery CivilianLivery(int colorIndex, string plate) { var c = Palette[((colorIndex % Palette.Length) + Palette.Length) % Palette.Length]; return CarLivery.Civilian(c[0], c[1], c[2], plate); }
 
+        /// <summary>
+        /// Drop-in replacement of the procedural car by a modelled prefab. Put a prefab at Resources/Models/Vehicles/&lt;Name&gt;.prefab where Name is
+        /// "Police_Wagon" (patrol car) or the body kind ("Wagon", "Hatchback", "Sedan", "Suv", "Van"). Axes: +Z forward, +Y up, origin on the ground in the middle of the car,
+        /// real size (about 4.7 x 1.85 x 1.5 m). Wheels are optional children named Wheel_FL, Wheel_FR, Wheel_RL, Wheel_RR (pivot at the wheel centre; they are steered and spun).
+        /// Without a wheel child the wheels of the procedural car stay visible.
+        /// </summary>
+        static void TryApplyCustomModel(GameObject root, VehicleVisual vv, BodyKind kind, bool police)
+        {
+            var prefab = Resources.Load<GameObject>("Models/Vehicles/" + (police ? "Police_" : "") + kind);
+            if (prefab == null && police) prefab = Resources.Load<GameObject>("Models/Vehicles/Police_Wagon");
+            if (prefab == null) return;
+            var inst = UnityEngine.Object.Instantiate(prefab, root.transform, false); inst.name = "CustomModel";
+            foreach (var col in inst.GetComponentsInChildren<Collider>()) UnityEngine.Object.Destroy(col);
+            if (vv.BodyRenderer != null) vv.BodyRenderer.enabled = false;
+            string[] names = { "Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR" };
+            for (int i = 0; i < 4; i++)
+            {
+                var w = FindDeep(inst.transform, names[i]); if (w == null) continue;
+                if (vv.WheelPivots[i] != null) { foreach (var r in vv.WheelPivots[i].GetComponentsInChildren<Renderer>()) r.enabled = false; }
+                vv.WheelPivots[i] = w; vv.WheelSpin[i] = w.childCount > 0 ? w.GetChild(0) : w;
+            }
+        }
+
+        static Transform FindDeep(Transform t, string name) { if (t.name == name) return t; for (int i = 0; i < t.childCount; i++) { var r = FindDeep(t.GetChild(i), name); if (r != null) return r; } return null; }
+
         public static VehicleVisual Create(BodyKind kind, CarLivery liv, bool realLights = false, string name = "Car")
         {
             if (liv.Body == null) liv.Body = new byte[] { 200, 200, 200 };
@@ -138,6 +163,7 @@ namespace SwissPoliceSim.Vehicles
                 var spin = new GameObject("Spin"); spin.transform.SetParent(pivot.transform, false); if (c[0] < 0) spin.transform.localRotation = Quaternion.Euler(0, 180, 0);
                 spin.AddComponent<MeshFilter>().sharedMesh = e.Wheel; var wr = spin.AddComponent<MeshRenderer>(); wr.sharedMaterials = wheelMats; wr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On; vv.WheelSpin[i] = spin.transform;
             }
+            TryApplyCustomModel(root, vv, kind, liv.LightBar);
             if (realLights) vv.AttachRealLights();
             return vv;
         }

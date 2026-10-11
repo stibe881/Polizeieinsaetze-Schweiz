@@ -24,7 +24,7 @@ namespace SwissPoliceSim.Rendering
         static WeatherSample Clear() => new WeatherSample { TemperatureC = 14f, Visibility = 20000f, RoadFriction = 1f, WindMs = 2f };
         public float Daylight { get; private set; } = 1f; public double SunElevation { get; private set; }
 
-        Light _sun, _moon; Material _sky; Volume _volume; Bloom _bloom; ColorAdjustments _color; Vignette _vignette; Tonemapping _tone;
+        Light _sun, _moon; Material _sky, _pano; Volume _volume; Bloom _bloom; ColorAdjustments _color; Vignette _vignette; Tonemapping _tone;
         ParticleSystem _rain, _snow; AudioSource _rainSrc, _windSrc, _oneShot; float _nextSky, _nextWeather, _wet, _snowCover, _flash, _nextThunder = -1;
         double _lat = 46.95, _lon = 7.44, _alt = 540; bool _inited;
 
@@ -40,6 +40,7 @@ namespace SwissPoliceSim.Rendering
             RenderSettings.sun = _sun; RenderSettings.ambientMode = AmbientMode.Skybox; RenderSettings.defaultReflectionMode = DefaultReflectionMode.Skybox; RenderSettings.reflectionIntensity = 1f;
             var sh = Shader.Find("Skybox/Procedural");
             if (sh != null) { _sky = new Material(sh) { name = "SkyProc" }; RenderSettings.skybox = _sky; }
+            var psh = Shader.Find("Skybox/Panoramic"); var ptex = Resources.Load<Texture>("Sky/sky_day"); if (psh != null && ptex != null) { _pano = new Material(psh) { name = "SkyHdri" }; _pano.SetTexture("_MainTex", ptex); _pano.SetFloat("_Mapping", 1f); _pano.SetFloat("_ImageType", 0f); }
             RenderSettings.fog = true; RenderSettings.fogMode = FogMode.ExponentialSquared; RenderSettings.fogDensity = 0.00008f;
             if (cam != null) { cam.clearFlags = CameraClearFlags.Skybox; cam.allowHDR = true; cam.farClipPlane = 60000f; cam.nearClipPlane = 0.2f; cam.depth = 0; }
             SetupPost();
@@ -118,6 +119,11 @@ namespace SwissPoliceSim.Rendering
                 _sky.SetFloat("_Exposure", Mathf.Lerp(0.08f, 1.15f, Mathf.Clamp01(day * day * 1.3f)) * Mathf.Lerp(1f, 0.6f, overcast)); _sky.SetFloat("_AtmosphereThickness", Mathf.Lerp(0.9f, 1.4f, low) + overcast * 0.6f);
                 _sky.SetColor("_SkyTint", Color.Lerp(new Color(0.5f, 0.5f, 0.5f), new Color(0.42f, 0.42f, 0.46f), overcast)); _sky.SetColor("_GroundColor", Color.Lerp(new Color(0.37f, 0.35f, 0.33f), new Color(0.12f, 0.12f, 0.14f), 1f - day));
                 _sky.SetFloat("_SunSize", Mathf.Lerp(0.05f, 0.0f, overcast)); RenderSettings.skybox = _sky;
+                // by day a real photographic HDRI sky (Poly Haven, CC0) replaces the procedural one; its baked sun sits at azimuth 34 degrees / 48 degrees elevation, so it is rotated to our sun and only used where the elevations are close
+                if (_pano != null && el > 30 && el < 66 && overcast < 0.55f)
+                {
+                    _pano.SetFloat("_Rotation", Mathf.Repeat((float)az - 34f, 360f)); _pano.SetFloat("_Exposure", Mathf.Lerp(0.9f, 0.55f, overcast) * Mathf.Clamp01(day * 1.2f + 0.1f)); _pano.SetColor("_Tint", Color.Lerp(Color.white, new Color(0.8f, 0.82f, 0.88f), overcast)); RenderSettings.skybox = _pano;
+                }
             }
             RenderSettings.ambientIntensity = Mathf.Lerp(0.18f, 1.0f, day) * Mathf.Lerp(1f, 0.8f, overcast);
             RenderSettings.reflectionIntensity = Mathf.Lerp(0.25f, 1f, day);

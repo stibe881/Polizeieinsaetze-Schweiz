@@ -20,8 +20,15 @@ Stand: Ende Phase 6 der Umsetzung. **Kein Unity war verfügbar** – siehe „Wa
 * **Screenshots** sind Software-Renderer-Vorschauen (Tools/Preview) – **nicht Unity**; Beleuchtung/Post-Processing in Unity weichen ab.
 * **Daten:** nur der Pilotraum Bern (25 Kacheln, 6.7 MB) liegt vor. Landesweites Backen war hier nicht möglich (Overpass/Geofabrik nicht erreichbar, Datenmenge).
 
+## Grafik-Update (PBR, HDRI)
+* **Photo-PBR-Materialien** (ambientCG, CC0) für Strassen, Trottoir, Putz, Dächer, Kies, Beton, Metall, Gras/Fels/Boden: Albedo, Normal, Roughness, AO, **weltraum-triplanar** gemappt (`SPS_Lit` mit `_Pbr`, `SPS_Terrain`), unabhängig von den Mesh-UVs. Importeinstellungen setzt `Editor/PbrTextureImporter`.
+* **HDRI-Himmel** (Poly Haven) tagsüber bei 30–66° Sonnenhöhe und wenig Bewölkung; sonst der prozedurale Himmel (Sonnenaufgang/Nacht). Die Drehung des HDRI auf die Sonne ist ungetestet.
+* **Software-Vorschau** zeigt dieselben Materialien und denselben Himmel (nicht Unity, keine Spiegelungsproben/Volumetrik).
+* **Modellaustausch:** `Resources/Models/Vehicles/<Police_>Wagon|Hatchback|Sedan|Suv|Van.prefab` ersetzt das prozedurale Fahrzeug (Anforderungen im Code, `VehicleFactory.TryApplyCustomModel`). Für Personen gibt es noch **keinen** Austausch.
+* Fahrzeuge und Personen sind weiterhin prozedural: frei verfügbare, realistische Fahrzeug- und Personenmodelle (CC0) waren nicht auffindbar (Poly Haven: Scans von Requisiten; Kenney/Quaternius: stilisiert).
+
 ## Bekannte Einschränkungen
-* Grafik ist prozedural (Low-Poly mit Texturen/Details), **nicht** auf dem Niveau handmodellierter Assets. Ein Austausch durch eigene Prefabs ist noch **nicht** implementiert (geplant: Prefab-Ersatzmechanismus je Fahrzeug-/Figurentyp).
+* Geometrie von Gebäuden, Fahrzeugen, Personen ist prozedural und **nicht** auf dem Niveau handmodellierter Assets; Materialien sind seit dem PBR-Update fotobasiert.
 * Fahrzeugtypen: Kombi, Fliessheck, Limousine, SUV, Lieferwagen; keine LKW/Busse.
 * Kantonale Polizeigesetze nicht verifiziert (`docs/LEGAL_STATUS.md`).
 * Fussgänger reagieren nicht auf Verkehrsmeldungen der TrafficSimulation (nur Kollisionsprüfung).

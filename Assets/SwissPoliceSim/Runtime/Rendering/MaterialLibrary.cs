@@ -69,14 +69,35 @@ namespace SwissPoliceSim.Rendering
 
         public static Material Instance(Material shared, string suffix) { var m = new Material(shared) { name = shared.name + suffix }; return m; }
 
+
+        // ------------------------------------------------------------------ photo PBR sets (ambientCG, CC0) – mapped in world space, see SPS_Lit "_Pbr"
+        static Texture2D Res(string name) => Resources.Load<Texture2D>("PBR/" + name);
+        public static bool HasPbr(string set) => Res(set + "_Color") != null;
+
+        /// <summary>Material with a photographic PBR set (albedo, normal, roughness, AO) triplanar-mapped in world space; falls back to <paramref name="fallback"/> if the set is not in the project.</summary>
+        public static Material MakePbr(string key, string set, float repeatsPerMetre, float boost, Func<Material> fallback, float smoothScale = 1f, bool vertexColor = true, bool doubleSided = false, float normalStrength = 1f)
+        {
+            if (Cache.TryGetValue(key, out var cached) && cached != null) return cached;
+            var col = Res(set + "_Color"); if (col == null) return fallback();
+            var m = Make(key, col, Color.white, 0.2f, 0f, vertexColor, false, doubleSided);
+            Set(m, "_Pbr", 1f); Set(m, "_TriScale", repeatsPerMetre); Set(m, "_PbrBoost", boost); Set(m, "_SmoothScale", smoothScale); Set(m, "_NormalStrength", normalStrength);
+            var n = Res(set + "_Normal"); var r = Res(set + "_Rough"); var ao = Res(set + "_AO");
+            if (n != null && m.HasProperty("_NormalMap")) m.SetTexture("_NormalMap", n); if (r != null && m.HasProperty("_RoughMap")) m.SetTexture("_RoughMap", r); if (ao != null && m.HasProperty("_AOMap")) m.SetTexture("_AOMap", ao);
+            return m;
+        }
+
         // ------------------------------------------------------------------ world materials
         public static Material[] Terrain()
         {
             var m = Get("terrain", () =>
             {
                 var mat = new Material(TerrainShader) { name = "terrain" };
-                if (mat.HasProperty("_GrassMap")) { mat.SetTexture("_GrassMap", Tex("grass", () => ProceduralTextures.Grass())); mat.SetTexture("_RockMap", Tex("rock", () => ProceduralTextures.Rock())); mat.SetTexture("_PavedMap", Tex("urbanground", () => ProceduralTextures.UrbanGround())); }
-                else SetBase(mat, Tex("grass", () => ProceduralTextures.Grass()), Color.white);
+                if (mat.HasProperty("_GrassMap"))
+                {
+                    mat.SetTexture("_GrassMap", Res("Grass004_Color") ?? Tex("grass", () => ProceduralTextures.Grass())); mat.SetTexture("_RockMap", Res("Rock030_Color") ?? Tex("rock", () => ProceduralTextures.Rock())); mat.SetTexture("_PavedMap", Res("Ground037_Color") ?? Tex("urbanground", () => ProceduralTextures.Pavement()));
+                    var gn = Res("Grass004_Normal"); var rn = Res("Rock030_Normal"); var pn = Res("Ground037_Normal"); if (gn != null) mat.SetTexture("_GrassN", gn); if (rn != null) mat.SetTexture("_RockN", rn); if (pn != null) mat.SetTexture("_PavedN", pn);
+                }
+                else SetBase(mat, Res("Grass004_Color") ?? Tex("grass", () => ProceduralTextures.Grass()), Color.white);
                 return mat;
             });
             return new[] { m };
@@ -90,8 +111,8 @@ namespace SwissPoliceSim.Rendering
             var asphalt = Tex("asphalt", () => ProceduralTextures.Asphalt());
             return new[]
             {
-                Make("road0", asphalt, Color.white, 0.22f), Make("road1", asphalt, Color.white, 0.2f), Make("road2", asphalt, Color.white, 0.18f),
-                Make("sidewalk", Tex("pavement", () => ProceduralTextures.Pavement()), Color.white, 0.08f),
+                MakePbr("road0", "Asphalt031", 0.25f, 1.5f, () => Make("road0", asphalt, Color.white, 0.22f)), MakePbr("road1", "Asphalt004", 0.25f, 1.6f, () => Make("road1", asphalt, Color.white, 0.2f)), MakePbr("road2", "Asphalt004", 0.25f, 1.5f, () => Make("road2", asphalt, Color.white, 0.18f)),
+                MakePbr("sidewalk", "PavingStones070", 0.5f, 1.3f, () => Make("sidewalk", Tex("pavement", () => ProceduralTextures.Pavement()), Color.white, 0.08f)),
                 Make("mark_white", null, Color.white, 0.3f), Make("mark_yellow", null, Color.white, 0.3f)
             };
         }
@@ -102,17 +123,17 @@ namespace SwissPoliceSim.Rendering
             return new[]
             {
                 Make("facade0", Tex("facade0", () => ProceduralTextures.FacadeResidential()), Color.white, 0.05f), Make("facade1", Tex("facade1", () => ProceduralTextures.FacadeCommercial()), Color.white, 0.08f), Make("facade2", Tex("facade2", () => ProceduralTextures.FacadeIndustrial()), Color.white, 0.1f),
-                Make("roof_tiles", Tex("rooftiles", () => ProceduralTextures.RoofTiles()), Color.white, 0.12f, 0f, true, false, true), Make("roof_flat", Tex("roofflat", () => ProceduralTextures.FlatRoof()), Color.white, 0.05f, 0f, true, false, true),
-                Make("plaster", Tex("plaster", () => ProceduralTextures.PlasterWall()), Color.white, 0.04f), Make("windows", Tex("windows", () => ProceduralTextures.WindowAtlas(), true, TextureWrapMode.Clamp), Color.white, 0.88f, 0.1f),
-                Make("trim", Tex("stone", () => ProceduralTextures.Stone()), Color.white, 0.06f, 0f, true, false, true), Make("shutters", Tex("shutter", () => ProceduralTextures.ShutterSlats()), Color.white, 0.12f, 0f, true, false, true),
+                MakePbr("roof_tiles", "RoofingTiles014A", 0.5f, 1.5f, () => Make("roof_tiles", Tex("rooftiles", () => ProceduralTextures.RoofTiles()), Color.white, 0.12f, 0f, true, false, true), 1f, true, true), MakePbr("roof_flat", "Gravel022", 0.5f, 1.4f, () => Make("roof_flat", Tex("roofflat", () => ProceduralTextures.FlatRoof()), Color.white, 0.05f, 0f, true, false, true), 1f, true, true),
+                MakePbr("plaster", "Plaster003", 0.4f, 1.7f, () => Make("plaster", Tex("plaster", () => ProceduralTextures.PlasterWall()), Color.white, 0.04f)), Make("windows", Tex("windows", () => ProceduralTextures.WindowAtlas(), true, TextureWrapMode.Clamp), Color.white, 0.88f, 0.1f),
+                MakePbr("trim", "Concrete025", 0.5f, 1.6f, () => Make("trim", Tex("stone", () => ProceduralTextures.Stone()), Color.white, 0.06f, 0f, true, false, true), 1f, true, true), Make("shutters", Tex("shutter", () => ProceduralTextures.ShutterSlats()), Color.white, 0.12f, 0f, true, false, true),
                 Make("railing", Tex("railing", () => ProceduralTextures.Railing()), Color.white, 0.4f, 0.6f, true, true, true)
             };
         }
 
         /// <summary>Furniture: 0 painted metal/concrete/signs, 1 signal lenses (animated), 2 sign faces.</summary>
-        public static Material[] Furniture() => new[] { Make("furniture", null, Color.white, 0.35f, 0.3f), Make("signal_lens", null, Color.white, 0.8f, 0f, true, false, false, null, true), Make("signface", null, Color.white, 0.4f, 0f, true, false, true) };
+        public static Material[] Furniture() => new[] { MakePbr("furniture", "Metal032", 0.5f, 1.2f, () => Make("furniture", null, Color.white, 0.35f, 0.3f)), Make("signal_lens", null, Color.white, 0.8f, 0f, true, false, false, null, true), Make("signface", null, Color.white, 0.4f, 0f, true, false, true) };
 
-        public static Material[] Rails() => new[] { Make("ballast", Tex("gravel", () => ProceduralTextures.Gravel()), Color.white, 0.05f), Make("rails", null, Color.white, 0.6f, 0.8f), Make("sleepers", Tex("stone", () => ProceduralTextures.Stone()), Color.white, 0.05f), Make("masts", null, Color.white, 0.4f, 0.6f) };
+        public static Material[] Rails() => new[] { MakePbr("ballast", "Gravel022", 0.5f, 1.2f, () => Make("ballast", Tex("gravel", () => ProceduralTextures.Gravel()), Color.white, 0.05f)), Make("rails", null, Color.white, 0.6f, 0.8f), MakePbr("sleepers", "Concrete025", 0.5f, 1.4f, () => Make("sleepers", Tex("stone", () => ProceduralTextures.Stone()), Color.white, 0.05f)), Make("masts", null, Color.white, 0.4f, 0.6f) };
 
         public static Material Water()
         {

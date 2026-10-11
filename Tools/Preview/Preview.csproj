@@ -8,6 +8,9 @@
     <ServerGarbageCollector>false</ServerGarbageCollector>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.5" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="../../Assets/SwissPoliceSim/Core/**/*.cs" />
     <Compile Include="*.cs" />
   </ItemGroup>

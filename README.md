@@ -23,4 +23,6 @@ dotnet test Tools/Core.Tests            # 139 Tests
 dotnet build Tools/RuntimeCheck         # Unity-Code gegen echte UnityEngine-API
 dotnet run --project Tools/Preview -c Release -- --scene drive --out x.png   # Software-Vorschau
 ```
+Grafik-Quellen: [`docs/CREDITS.md`](docs/CREDITS.md). Eigene Fahrzeugmodelle: Prefab nach `Assets/SwissPoliceSim/Resources/Models/Vehicles/` (siehe `docs/STATUS.md`).
+
 Dokumente: [`ARCHITECTURE`](docs/ARCHITECTURE.md) · [`DATA_SOURCES`](docs/DATA_SOURCES.md) · [`LEGAL_STATUS`](docs/LEGAL_STATUS.md) · [`STATUS`](docs/STATUS.md)

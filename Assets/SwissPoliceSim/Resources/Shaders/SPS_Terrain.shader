@@ -7,6 +7,13 @@ Shader "SPS/Terrain"
         _GrassMap ("Grass / soil", 2D) = "white" {}
         _RockMap ("Rock / scree", 2D) = "white" {}
         _PavedMap ("Paved / urban ground", 2D) = "white" {}
+        [NoScaleOffset] _GrassN ("Grass normal", 2D) = "bump" {}
+        [NoScaleOffset] _RockN ("Rock normal", 2D) = "bump" {}
+        [NoScaleOffset] _PavedN ("Paved normal", 2D) = "bump" {}
+        _GrassScale ("Grass repeats per metre", Float) = 0.25
+        _RockScale ("Rock repeats per metre", Float) = 0.125
+        _PavedScale ("Paved repeats per metre", Float) = 0.25
+        _NormalStrength ("Normal strength", Range(0,2)) = 1
         _SnowLine ("Snow line (m a.s.l.)", Float) = 2400
         _Tiling ("Detail tiling (per UV unit)", Float) = 0.45
         _Wet ("Wetness", Range(0,1)) = 0
@@ -48,6 +55,7 @@ Shader "SPS/Terrain"
             TEXTURE2D(_GrassMap); SAMPLER(sampler_GrassMap);
             TEXTURE2D(_RockMap);  SAMPLER(sampler_RockMap);
             TEXTURE2D(_PavedMap); SAMPLER(sampler_PavedMap);
+            TEXTURE2D(_GrassN); TEXTURE2D(_RockN); TEXTURE2D(_PavedN);
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _BaseMap_ST;
@@ -56,6 +64,10 @@ Shader "SPS/Terrain"
                 half _Cull;
                 float _SnowLine;
                 float _Tiling;
+                float _GrassScale;
+                float _RockScale;
+                float _PavedScale;
+                half _NormalStrength;
                 half _Wet;
                 half _SnowCover;
             CBUFFER_END
@@ -85,17 +97,27 @@ Shader "SPS/Terrain"
 
             half4 frag(Varyings IN) : SV_Target
             {
-                float2 uv = IN.uv * _Tiling;
-                half3 g1 = SAMPLE_TEXTURE2D(_GrassMap, sampler_GrassMap, uv).rgb;
-                half3 g2 = SAMPLE_TEXTURE2D(_GrassMap, sampler_GrassMap, uv * 0.137 + 0.31).rgb;       // large-scale repeat breaker
-                half3 grass = g1 * (0.65 + 0.7 * g2.g);
-                half3 rock = SAMPLE_TEXTURE2D(_RockMap, sampler_RockMap, uv * 0.7).rgb;
-                half3 paved = SAMPLE_TEXTURE2D(_PavedMap, sampler_PavedMap, uv).rgb;
+                float3 pw = IN.positionWS; half3 n = normalize(IN.normalWS);
+                // world-space mapping (seamless across tiles). Grass/paved planar from above, rock triplanar because it is mostly on steep faces.
+                float2 uvg = pw.xz * _GrassScale, uvp = pw.xz * _PavedScale;
+                half3 g1 = SAMPLE_TEXTURE2D(_GrassMap, sampler_GrassMap, uvg).rgb;
+                half3 g2 = SAMPLE_TEXTURE2D(_GrassMap, sampler_GrassMap, uvg * 0.137 + 0.31).rgb;       // large-scale repeat breaker
+                half3 grass = g1 * (0.7 + 0.6 * g2.g);
+                half3 bw = pow(abs(n), 4); bw /= (bw.x + bw.y + bw.z); float2 uvx = pw.zy * _RockScale, uvy = pw.xz * _RockScale, uvz = pw.xy * _RockScale;
+                half3 rock = SAMPLE_TEXTURE2D(_RockMap, sampler_RockMap, uvx).rgb * bw.x + SAMPLE_TEXTURE2D(_RockMap, sampler_RockMap, uvy).rgb * bw.y + SAMPLE_TEXTURE2D(_RockMap, sampler_RockMap, uvz).rgb * bw.z;
+                half3 paved = SAMPLE_TEXTURE2D(_PavedMap, sampler_PavedMap, uvp).rgb;
                 float wRock = saturate(IN.uv2.x), wPaved = saturate(IN.uv2.y), wGrass = saturate(1.0 - wRock - wPaved);
                 half3 tint = SRGBToLinear(IN.color.rgb);
-                half3 albedo = (grass * wGrass * tint + rock * wRock * lerp(tint, half3(1,1,1), 0.5) + paved * wPaved * tint);
-
-                half3 n = normalize(IN.normalWS);
+                half3 albedo = (grass * wGrass * tint * 1.25 + rock * wRock * lerp(tint, half3(1,1,1), 0.6) + paved * wPaved * tint * 1.2);
+                // detail normals, blended by the same weights, applied around the geometric normal
+                half3 tg = UnpackNormalScale(SAMPLE_TEXTURE2D(_GrassN, sampler_GrassMap, uvg), _NormalStrength);
+                half3 tr = UnpackNormalScale(SAMPLE_TEXTURE2D(_RockN, sampler_RockMap, uvy), _NormalStrength);
+                half3 tp = UnpackNormalScale(SAMPLE_TEXTURE2D(_PavedN, sampler_PavedMap, uvp), _NormalStrength);
+                half3 tn = normalize(tg * wGrass + tr * wRock + tp * wPaved + half3(0, 0, 1e-3));
+                half3 T = normalize(float3(1, 0, 0) - n * n.x); half3 Bt = cross(n, T);
+                // distance fade keeps far terrain smooth (less noise / shimmer)
+                float fade = saturate(1.0 - length(GetCameraPositionWS() - pw) / 120.0);
+                n = normalize(n + (tn.x * T + tn.y * Bt) * fade);
                 // snow: altitude line modulated by noise, steep faces keep less snow, weather adds cover down to low altitude
                 float h = IN.positionWS.y; // NOTE: world y == metres a.s.l. (the floating origin never shifts y)
                 float noise = VNoise(IN.positionWS.xz * 0.05) * 140.0 - 70.0;

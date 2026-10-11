@@ -25,6 +25,9 @@ public sealed class Mat
     public bool Unlit;
     public bool CutoutAlpha;             // alpha from the texture, discard < .5 (decals)
     public bool Sky;                     // reflect sky colour (glass)
+    // photo PBR set (ambientCG), world-space triplanar like the Unity shader SPS/Lit with _Pbr = 1
+    public Image[] NormMips, RoughMips, AoMips; public float TriScale = 0.25f, Boost = 1f, NormalStrength = 1f;
+    public bool Pbr => NormMips != null;
 
     public static Image[] MakeMips(Image im)
     {
@@ -98,8 +101,13 @@ public sealed class SoftRenderer
         return Vector3.Normalize(Vector3.TransformNormal(dirView, inv));
     }
 
+    public Hdri SkyMap;
     Vector3 Sky(Vector3 d)
     {
+        if (SkyMap != null)
+        {
+            var c0 = SkyMap.Sample(d, (float)Math.Atan2(-SunDir.X, -SunDir.Z)); c0 = new Vector3(Math.Min(c0.X, 40f), Math.Min(c0.Y, 40f), Math.Min(c0.Z, 40f)); return c0 * 0.85f;
+        }
         float t = Math.Max(0, d.Y); t = (float)Math.Pow(t, 0.55f);
         var c = Vector3.Lerp(SkyHorizon, SkyZenith, t);
         float sun = Math.Max(0, Vector3.Dot(d, -SunDir));
@@ -289,6 +297,33 @@ public sealed class SoftRenderer
                     if (mat.CutoutAlpha) { if (ta < 0.5f) continue; albedo = Lin(new Vector3(tr, tg, tb)) * (mat.UseVertexColor ? Lin(vc) : Vector3.One) * Lin(mat.Base); alpha = 1; }
                     else { albedo *= Lin(new Vector3(tr, tg, tb)); if (mat.Alpha >= 0.999f) alpha = 1; else alpha *= ta; }
                 }
+                float specAmt = mat.Specular, gloss = mat.Gloss, aoK = 1f;
+                if (mat.Pbr)
+                {
+                    var ng = nrm; var bw = new Vector3((float)Math.Pow(Math.Abs(ng.X), 4), (float)Math.Pow(Math.Abs(ng.Y), 4), (float)Math.Pow(Math.Abs(ng.Z), 4)); bw /= bw.X + bw.Y + bw.Z;
+                    float distC = (CamPos - wp).Length(); float footprint = distC * 2f * (float)Math.Tan(FovY * Math.PI / 360) / PH;   // metres per pixel
+                    int pl = (int)Math.Max(0, Math.Min(mat.Mips.Length - 1, Math.Log(Math.Max(1e-6f, footprint * mat.TriScale * mat.Mips[0].W), 2)));
+                    Vector3 cA = Vector3.Zero; float rr = 0, aoo = 0; Vector3 nA = Vector3.Zero;
+                    for (int axis = 0; axis < 3; axis++)
+                    {
+                        float w = axis == 0 ? bw.X : axis == 1 ? bw.Y : bw.Z; if (w < 0.04f) continue;
+                        float u = (axis == 0 ? wp.Z : wp.X) * mat.TriScale, v = (axis == 0 ? wp.Y : axis == 1 ? wp.Z : wp.Y) * mat.TriScale; if (axis == 2) { u = wp.X * mat.TriScale; v = wp.Y * mat.TriScale; }
+                        SampleTex(mat.Mips[pl], u, v, out float cr, out float cg, out float cb, out _); cA += Lin(new Vector3(cr, cg, cb)) * w;
+                        SampleTex(mat.RoughMips[Math.Min(pl, mat.RoughMips.Length - 1)], u, v, out float r1, out _, out _, out _); rr += r1 * w;
+                        SampleTex(mat.AoMips[Math.Min(pl, mat.AoMips.Length - 1)], u, v, out float a1, out _, out _, out _); aoo += a1 * w;
+                        SampleTex(mat.NormMips[Math.Min(pl, mat.NormMips.Length - 1)], u, v, out float nx, out float ny, out float nz, out _);
+                        float tx = (nx * 2 - 1) * mat.NormalStrength, ty = (ny * 2 - 1) * mat.NormalStrength, tz = Math.Max(0.05f, nz * 2 - 1);
+                        Vector3 wn;   // whiteout blend per projection axis (same swizzles as the shader)
+                        if (axis == 0) { var t3 = new Vector3(tx + ng.Z, ty + ng.Y, tz * Math.Abs(ng.X)); wn = new Vector3(t3.Z, t3.Y, t3.X); }
+                        else if (axis == 1) { var t3 = new Vector3(tx + ng.X, ty + ng.Z, tz * Math.Abs(ng.Y)); wn = new Vector3(t3.X, t3.Z, t3.Y); }
+                        else { var t3 = new Vector3(tx + ng.X, ty + ng.Y, tz * Math.Abs(ng.Z)); wn = t3; }
+                        nA += wn * w;
+                    }
+                    float ws = (bw.X >= 0.04f ? bw.X : 0) + (bw.Y >= 0.04f ? bw.Y : 0) + (bw.Z >= 0.04f ? bw.Z : 0); cA /= ws; rr /= ws; aoo /= ws;
+                    if (nA.LengthSquared() > 1e-6f) nrm = Vector3.Normalize(nA);
+                    albedo = cA * mat.Boost * Lin(mat.Base) * (mat.UseVertexColor ? Lin(vc) : Vector3.One); alpha = 1;
+                    specAmt = 0.35f * (1.2f - rr); gloss = Math.Max(6f, 2f / (rr * rr * 0.9f + 0.02f)); aoK = 0.35f + 0.65f * aoo;
+                }
                 Vector3 col;
                 var toCam = CamPos - wp; float dist = toCam.Length(); var V = toCam / Math.Max(1e-5f, dist);
                 if (mat.Unlit) col = albedo + mat.Emissive;
@@ -298,11 +333,11 @@ public sealed class SoftRenderer
                     float sh = 1;
                     if (Shadows && ndl > 0) sh = ShadowAt(wp + nrm * 0.15f, 0.0015f);
                     var amb = Vector3.Lerp(AmbientGround, AmbientSky, nrm.Y * 0.5f + 0.5f);
-                    col = albedo * (amb + SunColor * ndl * sh);
-                    if (mat.Specular > 0)
+                    col = albedo * (amb * aoK + SunColor * ndl * sh * (0.6f + 0.4f * aoK));
+                    if (specAmt > 0)
                     {
                         var h = Vector3.Normalize(V - SunDir);
-                        float sp = (float)Math.Pow(Math.Max(0, Vector3.Dot(nrm, h)), mat.Gloss) * mat.Specular * sh;
+                        float sp = (float)Math.Pow(Math.Max(0, Vector3.Dot(nrm, h)), gloss) * specAmt * sh;
                         col += SunColor * sp * 0.5f;
                         if (mat.Sky) { var r = Vector3.Reflect(-V, nrm); float fres = 0.04f + 0.96f * (float)Math.Pow(1 - Math.Max(0, Vector3.Dot(nrm, V)), 4); col = Vector3.Lerp(col, Sky(r), Math.Min(1f, fres * 1.2f + 0.12f)); }
                     }
