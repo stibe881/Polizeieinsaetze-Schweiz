@@ -15,7 +15,7 @@ SwissServer (C#, net8)  <—WebSocket—>  Unreal-Client (C++)   Kacheln, Autos,
 4. **Level:** Neues leeres Level (*Basic*) anlegen, speichern (z. B. `/Game/SPS/L_Sps`), als *Game Default Map* setzen. Der GameMode (`SpsGameMode`) ist bereits in `DefaultEngine.ini` eingetragen und spawnt alles zur Laufzeit.
 5. Play. Menü (Web-Overlay) → Korps → *Neues Spiel*.
 
-Optionen: `-SpsServer=ws://host:47800/ws` (Kommandozeile), `[/Script/SwissPoliceSim.SpsSettings] ServerUrl/UiUrl` in `DefaultGame.ini`.
+Optionen: `-SpsServer=ws://host:47800/ws` (Kommandozeile), `[/Script/SwissPoliceSim.SpsSettings] ServerHost/ServerPort` in `DefaultGame.ini` (keine URLs: UE liest `//` in INI-Werten als Kommentar).
 
 ## Was der Client macht
 `ASpsClient` verbindet, hält Modelle/Kacheln, baut `ASpsTile` (Gelände, Strassen, Gebäude, Wasser, Mobiliar, Schiene, zusammengefasste Bäume) als ProceduralMesh, spawnt `ASpsCar` / `ASpsHuman` / `ASpsProp` aus Snapshots, sendet 10×/s die Pose. `ASpsPlayerFoot` (Charakter) und `ASpsPlayerCar` (Arcade-Fahrmodell, Bodenfolge per Line-Trace, Sweep-Kollision) sind die Spielerfiguren. `ASpsAtmosphere` setzt Sonne/Himmel/Wolken/Nebel/Belichtung aus Spielzeit und Wetter (Lumen, Virtual Shadow Maps, SkyAtmosphere, Volumetric Clouds über `DefaultEngine.ini`). `ASpsController` verarbeitet Eingaben und leitet Fenster-Tasten an die Web-UI weiter.

@@ -33,8 +33,11 @@ ASpsClient::ASpsClient()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	SetRootComponent(CreateDefaultSubobject<USceneComponent>(TEXT("Root")));
-	ServerUrl = TEXT("ws://127.0.0.1:47800/ws"); UiUrl = TEXT("http://127.0.0.1:47800/?embedded=1");
-	if (GConfig) { GConfig->GetString(TEXT("/Script/SwissPoliceSim.SpsSettings"), TEXT("ServerUrl"), ServerUrl, GGameIni); GConfig->GetString(TEXT("/Script/SwissPoliceSim.SpsSettings"), TEXT("UiUrl"), UiUrl, GGameIni); }
+	// Hinweis: UE liest "//" in INI-Werten als Kommentar. Deshalb Host und Port getrennt, die URLs werden hier gebaut.
+	FString Host = TEXT("127.0.0.1"); int32 Port = 47800;
+	if (GConfig) { GConfig->GetString(TEXT("/Script/SwissPoliceSim.SpsSettings"), TEXT("ServerHost"), Host, GGameIni); GConfig->GetInt(TEXT("/Script/SwissPoliceSim.SpsSettings"), TEXT("ServerPort"), Port, GGameIni); }
+	ServerUrl = FString::Printf(TEXT("ws://%s:%d/ws"), *Host, Port);
+	UiUrl = FString::Printf(TEXT("http://%s:%d/?embedded=1"), *Host, Port);
 }
 
 ASpsClient* ASpsClient::Get(UWorld* World)
