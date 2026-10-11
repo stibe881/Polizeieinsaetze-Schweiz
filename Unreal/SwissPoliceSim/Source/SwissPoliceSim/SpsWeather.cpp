@@ -5,6 +5,8 @@
 #include "GameFramework/PlayerController.h"
 #include "Camera/PlayerCameraManager.h"
 #include "SpsMaterials.h"
+#include "Kismet/KismetMaterialLibrary.h"
+#include "Materials/MaterialParameterCollection.h"
 
 ASpsWeather::ASpsWeather()
 {
@@ -21,6 +23,11 @@ ASpsWeather::ASpsWeather()
 void ASpsWeather::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	// wet surfaces: rain wets quickly, drying takes a few minutes; the materials read "Wetness" from MPC_Sps (darker albedo, low roughness)
+	if (!bCollectionTried) { bCollectionTried = true; Collection = LoadObject<UMaterialParameterCollection>(nullptr, TEXT("/Game/SPS/Materials/MPC_Sps.MPC_Sps"), nullptr, LOAD_NoWarn | LOAD_Quiet); }
+	const float WetTarget = (RainRate > 0.02f || SnowRate > 0.02f) ? 1.f : 0.f;
+	Wet = FMath::FInterpConstantTo(Wet, WetTarget, Dt, WetTarget > Wet ? 0.25f : 0.004f);
+	if (Collection && GetWorld()) UKismetMaterialLibrary::SetScalarParameterValue(GetWorld(), Collection, TEXT("Wetness"), Wet);
 	if (Local.Num() == 0)
 	{
 		Local.SetNum(Count); Phase.SetNum(Count);

@@ -22,7 +22,9 @@ private:
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Drops;
 	TArray<FVector> Local;      // position inside the box (cm), relative to the camera
 	TArray<float> Phase;
-	float RainRate = 0.f, SnowRate = 0.f;
+	float RainRate = 0.f, SnowRate = 0.f, Wet = 0.f;
+	UPROPERTY() TObjectPtr<class UMaterialParameterCollection> Collection;
+	bool bCollectionTried = false;
 	static constexpr int32 Count = 1800;
 	static constexpr float BoxXY = 2200.f, BoxZ = 1600.f;
 };

@@ -148,6 +148,20 @@ def build_vertex_color_master():
     return m
 
 
+def build_collection():
+    """MPC_Sps with the global scalar "Wetness" (0 dry .. 1 wet), driven by the C++ weather actor."""
+    path = "%s/MPC_Sps" % MAT_PATH
+    if unreal.EditorAssetLibrary.does_asset_exist(path):
+        unreal.EditorAssetLibrary.delete_asset(path)
+    mpc = tools.create_asset("MPC_Sps", MAT_PATH, unreal.MaterialParameterCollection, unreal.MaterialParameterCollectionFactoryNew())
+    p = unreal.CollectionScalarParameter()
+    p.set_editor_property("parameter_name", "Wetness")
+    p.set_editor_property("default_value", 0.0)
+    mpc.set_editor_property("scalar_parameters", [p])
+    unreal.EditorAssetLibrary.save_loaded_asset(mpc)
+    return mpc
+
+
 def build_pbr_master():
     """World-space triplanar PBR: albedo/normal/roughness/AO, tinted by the (linear) vertex colour. Parameters: Color, Normal, Rough, AO textures, Tiling (repeats per metre)."""
     m = new_material("M_Sps_Pbr")
@@ -226,6 +240,29 @@ def build_pbr_master():
     albedo = node(m, unreal.MaterialExpressionMultiply, 800, -300)
     link(color, albedo, "A")
     link(tint, albedo, "B")
+    # rain: darker and glossier through the global Wetness parameter
+    wet = None
+    try:
+        coll = unreal.EditorAssetLibrary.load_asset("%s/MPC_Sps" % MAT_PATH)
+        wet = node(m, unreal.MaterialExpressionCollectionParameter, 800, 100, collection=coll, parameter_name="Wetness")
+    except Exception:   # noqa
+        warn("MPC_Sps missing - materials stay dry")
+    if wet is not None:
+        dark = node(m, unreal.MaterialExpressionConstant, 800, -150, r=0.7)
+        one = node(m, unreal.MaterialExpressionConstant, 800, -80, r=1.0)
+        dim = node(m, unreal.MaterialExpressionLinearInterpolate, 1000, -120)
+        link(one, dim, "A")
+        link(dark, dim, "B")
+        link(wet, dim, "Alpha")
+        albedo2 = node(m, unreal.MaterialExpressionMultiply, 1200, -300)
+        link(albedo, albedo2, "A")
+        link(dim, albedo2, "B")
+        glossy = node(m, unreal.MaterialExpressionConstant, 800, 200, r=0.12)
+        rough2 = node(m, unreal.MaterialExpressionLinearInterpolate, 1000, 150)
+        link(rough, rough2, "A")
+        link(glossy, rough2, "B")
+        link(wet, rough2, "Alpha")
+        albedo, rough = albedo2, rough2
     mel.connect_material_property(albedo, "", unreal.MaterialProperty.MP_BASE_COLOR)
     mel.connect_material_property(normal, "", unreal.MaterialProperty.MP_NORMAL)
     mel.connect_material_property(ao, "", unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
@@ -356,7 +393,7 @@ def make_instances():
 
 
 def run():
-    steps = (("import textures", import_textures), ("vertex-colour master", build_vertex_color_master), ("PBR master", build_pbr_master), ("signal master", build_signal_master), ("instances", make_instances))
+    steps = (("import textures", import_textures), ("parameter collection", build_collection), ("vertex-colour master", build_vertex_color_master), ("PBR master", build_pbr_master), ("signal master", build_signal_master), ("instances", make_instances))
     for label, fn in steps:
         try:
             log("%s ..." % label)

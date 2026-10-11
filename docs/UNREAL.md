@@ -38,9 +38,9 @@ Der Client zeigt standardmässig die **prozeduralen Meshes** des Servers. Für S
 * **Origin-Rebasing:** ab 5 km Entfernung vom Ursprung wird die Welt auf ganze Kilometer neu zentriert.
 * **Fussgänger-Kollision:** angefahrene Personen bleiben liegen; der Server bewertet es rechtlich (`pedHit`).
 * **Ampeln:** Signalfarben aus UV1 und dem 60-s-Zyklus (Material `M_Sps_Signal`).
-* **Regen/Schnee:** instanzierte Streifen/Flocken um die Kamera (`ASpsWeather`), Intensität aus dem Server-Wetter.
+* **Regen/Schnee:** instanzierte Streifen/Flocken um die Kamera (`ASpsWeather`), Intensität aus dem Server-Wetter. Nasse Oberflächen: globaler Parameter `Wetness` in `MPC_Sps` (Rain macht dunkler und glatter, Trocknen dauert Minuten); wirkt nur in `M_Sps_Pbr`.
 
 ## Stand / Ehrlichkeit
 * **Kein Unreal war verfügbar.** Der C++-Code wurde nur gegen eine selbst geschriebene Stub-API geprüft (`Tools/UeCheck/check.sh`: Syntax/Typen). **Er ist nie gegen die echte Engine kompiliert oder gestartet worden**; mit API-Abweichungen (UE 5.4 angenommen) ist zu rechnen. `sps_setup.py` ist ebenfalls ungetestet.
 * **Server und Web-UI sind getestet** (`Tools/SwissClientTest`: End-to-End-Skript, alle Prüfungen grün; Web-UI per Headless-Browser).
-* Bekannte Lücken: Regen/Schnee sind einfache Instanzen (kein Niagara, keine nassen Strassen), Nummernschilder sind Textkomponenten, kein Spiegelbild, der Austausch von Menschen setzt Animationsassets voraus (kein Anim-Blueprint-Anschluss), Spielerauto ohne Fahrwerk-Physik (Arcade-Modell).
+* Bekannte Lücken: Regen/Schnee sind einfache Instanzen (kein Niagara), Nummernschilder sind Textkomponenten, kein Spiegelbild, der Austausch von Menschen setzt Animationsassets voraus (kein Anim-Blueprint-Anschluss), Spielerauto ohne Fahrwerk-Physik (Arcade-Modell).

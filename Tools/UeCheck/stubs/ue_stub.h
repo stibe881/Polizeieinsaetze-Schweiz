@@ -150,6 +150,7 @@ struct FMath
 	static FVector VInterpTo(const FVector& c, const FVector& t, float dt, float s) { return c + (t - c) * std::min(1.f, dt * s); }
 	static double FloorToDouble(double v) { return std::floor(v); }
 	static float FRandRange(float a, float b) { return a; } static double RoundToDouble(double v) { return std::round(v); }
+	static float FInterpConstantTo(float c, float t, float dt, float s) { return c; }
 	static float Sqrt(float v) { return std::sqrt(v); }
 };
 
@@ -198,6 +199,8 @@ struct USkeletalMeshComponent : USceneComponent { void SetSkeletalMesh(USkeletal
 enum class ETeleportType { None, TeleportPhysics };
 struct FTransform { FTransform() {} FTransform(const FRotator&, const FVector&, const FVector& = FVector()) {} };
 struct UInstancedStaticMeshComponent : USceneComponent { void SetStaticMesh(UStaticMesh*) {} void SetCastShadow(bool) {} void SetCollisionEnabled(ECollisionEnabled) {} int32 AddInstance(const FTransform&) { return 0; } int32 GetInstanceCount() const { return 0; } bool BatchUpdateInstancesTransforms(int32, const TArray<FTransform>&, bool, bool, bool) { return true; } void SetMaterial(int32, UMaterialInterface*) {} };
+struct UMaterialParameterCollection : UObject {};
+struct UKismetMaterialLibrary { static void SetScalarParameterValue(UObject*, UMaterialParameterCollection*, FName, float) {} };
 struct UBoxComponent : USceneComponent { void SetBoxExtent(const FVector&) {} void SetCollisionProfileName(FName) {} void SetCanEverAffectNavigation(bool) {} };
 struct UCapsuleComponent : USceneComponent { void InitCapsuleSize(float, float) {} void SetCollisionProfileName(FName) {} };
 enum EHorizTextAligment { EHTA_Center }; enum EVerticalTextAligment { EVRTA_TextCenter };
@@ -262,7 +265,7 @@ struct APlayerController : AController
 struct AGameModeBase : AActor { UClass_Stub* DefaultPawnClass = nullptr; UClass_Stub* PlayerControllerClass = nullptr; UClass_Stub* HUDClass = nullptr; };
 struct UGameViewportClient { template <class W> void AddViewportWidgetContent(W, int) {} template <class W> void RemoveViewportWidgetContent(W) {} };
 struct UEngine { UGameViewportClient* GameViewport = nullptr; }; extern UEngine* GEngine;
-struct UWorld
+struct UWorld : UObject
 {
 	template <class T> T* SpawnActor(const FVector&, const FRotator&) { return new T(); } APlayerController* GetFirstPlayerController() const { return nullptr; } double GetTimeSeconds() const { return 0; }
 	bool LineTraceSingleByChannel(FHitResult&, const FVector&, const FVector&, ECollisionChannel, const FCollisionQueryParams& = FCollisionQueryParams(FName(), false)) const { return false; }
