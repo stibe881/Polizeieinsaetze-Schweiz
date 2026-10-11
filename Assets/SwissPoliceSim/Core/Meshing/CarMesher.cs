@@ -48,7 +48,7 @@ namespace SwissPoliceSim.Core.Meshing
             var p = ForRaw(k);
             // plan-view taper: the nose and tail are narrower than the body so the corners read as rounded
             int n = p.Half.Length;
-            p.Half[n - 1][1] *= 0.84f; p.Half[0][1] *= 0.88f;
+            p.Half[n - 1][1] *= 0.90f; p.Half[0][1] *= 0.90f;
             return p;
         }
 
@@ -61,21 +61,21 @@ namespace SwissPoliceSim.Core.Meshing
                 case BodyKind.Hatchback: return new Profile
                 {
                     Length = 4.05f, WheelBase = 2.55f, FrontAxle = 1.28f, Track = 1.52f, WheelR = 0.31f, Clearance = 0.15f, Belt = 0.95f, GreenhouseNarrow = 0.80f,
-                    Top = new[] { P(-2.03f, 0.95f), P(-1.95f, 1.12f), P(-1.80f, 1.40f), P(-1.5f, 1.46f), P(-0.4f, 1.47f), P(0.0f, 1.44f), P(0.78f, 0.97f), P(1.1f, 0.94f), P(1.7f, 0.84f), P(1.95f, 0.76f), P(2.03f, 0.64f) },
+                    Top = new[] { P(-2.03f, 0.95f), P(-1.95f, 1.12f), P(-1.80f, 1.40f), P(-1.5f, 1.46f), P(-0.4f, 1.47f), P(0.0f, 1.44f), P(0.78f, 0.97f), P(1.1f, 0.94f), P(1.7f, 0.90f), P(1.95f, 0.84f), P(2.03f, 0.72f) },
                     Half = new[] { P(-2.03f, 0.80f), P(-1.85f, 0.86f), P(-1.5f, 0.89f), P(1.4f, 0.89f), P(1.8f, 0.86f), P(2.03f, 0.76f) },
                     SideWin0 = new[] { 0.60f, -0.28f }, SideWin1 = new[] { -0.40f, -1.20f }, SideWin2 = new[] { -1.30f, -1.62f }, RoofFront = 0.0f, WindShieldBase = 0.78f, RoofRear = -1.6f, RearGlassEnd = -1.95f
                 };
                 case BodyKind.Sedan: return new Profile
                 {
                     Length = 4.75f, WheelBase = 2.80f, FrontAxle = 1.45f, Track = 1.55f, WheelR = 0.33f, Clearance = 0.15f, Belt = 0.98f, GreenhouseNarrow = 0.80f,
-                    Top = new[] { P(-2.375f, 0.92f), P(-2.2f, 1.0f), P(-1.9f, 1.02f), P(-1.5f, 1.12f), P(-1.1f, 1.40f), P(-0.7f, 1.455f), P(-0.0f, 1.46f), P(0.3f, 1.42f), P(0.95f, 1.0f), P(1.3f, 0.95f), P(2.0f, 0.85f), P(2.375f, 0.68f) },
+                    Top = new[] { P(-2.375f, 0.92f), P(-2.2f, 1.0f), P(-1.9f, 1.02f), P(-1.5f, 1.12f), P(-1.1f, 1.40f), P(-0.7f, 1.455f), P(-0.0f, 1.46f), P(0.3f, 1.42f), P(0.95f, 1.0f), P(1.3f, 0.99f), P(2.0f, 0.93f), P(2.3f, 0.86f), P(2.375f, 0.74f) },
                     Half = new[] { P(-2.375f, 0.82f), P(-2.2f, 0.90f), P(-1.9f, 0.92f), P(1.7f, 0.92f), P(2.1f, 0.88f), P(2.375f, 0.78f) },
                     SideWin0 = new[] { 0.62f, -0.25f }, SideWin1 = new[] { -0.38f, -1.15f }, SideWin2 = new[] { -1.22f, -1.4f }, RoofFront = 0.0f, WindShieldBase = 0.95f, RoofRear = -0.75f, RearGlassEnd = -1.5f
                 };
                 case BodyKind.Suv: return new Profile
                 {
                     Length = 4.65f, WheelBase = 2.78f, FrontAxle = 1.42f, Track = 1.62f, WheelR = 0.38f, Clearance = 0.21f, Belt = 1.12f, GreenhouseNarrow = 0.84f,
-                    Top = new[] { P(-2.32f, 1.12f), P(-2.25f, 1.45f), P(-2.1f, 1.72f), P(-1.5f, 1.77f), P(-0.3f, 1.78f), P(0.15f, 1.74f), P(0.95f, 1.18f), P(1.3f, 1.12f), P(2.0f, 1.0f), P(2.32f, 0.80f) },
+                    Top = new[] { P(-2.32f, 1.12f), P(-2.25f, 1.45f), P(-2.1f, 1.72f), P(-1.5f, 1.77f), P(-0.3f, 1.78f), P(0.15f, 1.74f), P(0.95f, 1.18f), P(1.3f, 1.14f), P(2.0f, 1.07f), P(2.32f, 0.90f) },
                     Half = new[] { P(-2.32f, 0.88f), P(-2.2f, 0.94f), P(-1.9f, 0.96f), P(1.7f, 0.96f), P(2.1f, 0.92f), P(2.32f, 0.84f) },
                     SideWin0 = new[] { 0.72f, -0.30f }, SideWin1 = new[] { -0.42f, -1.20f }, SideWin2 = new[] { -1.28f, -1.95f }, RoofFront = 0.15f, WindShieldBase = 0.95f, RoofRear = -2.05f, RearGlassEnd = -2.2f
                 };
@@ -272,10 +272,10 @@ namespace SwissPoliceSim.Core.Meshing
                 }
                 else
                 {
-                    if (cz > pr.RoofFront + 0.04f && cz < pr.WindShieldBase - 0.04f && cy < 1.9f) return SubGlass;      // windshield
+                    if (cz > pr.RoofFront + 0.04f && cz < pr.WindShieldBase - 0.04f && cy < (pr.Belt > 1.2f ? 3.0f : 1.9f)) return SubGlass;      // windshield
                     if (cz < pr.RoofRear - 0.02f && cz > pr.RearGlassEnd) return SubGlass;                              // rear window
                 }
-                if (ax > 0.55f && ax <= 0.75f && cz > pr.RoofFront + 0.04f && cz < pr.WindShieldBase - 0.05f) return SubGlass;
+                if (ax > 0.55f && ax <= (pr.Belt > 1.2f ? 0.92f : 0.75f) && cz > pr.RoofFront + 0.04f && cz < pr.WindShieldBase - 0.05f) return SubGlass;
             }
             return SubPaint;
         }

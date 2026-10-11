@@ -179,6 +179,13 @@ static class Program
         else
         {
             // --cam px,pz,lx,lz,height,fov  (local metres from the Bundesplatz; height above ground)
+            if (cam != null && cam.StartsWith("signal"))
+            {
+                int want = cam.Length > 6 ? int.Parse(cam.Substring(7)) : 0, seen = 0; PointKind kind = PointKind.TrafficSignals;
+                if (cam.StartsWith("lamp")) kind = PointKind.StreetLamp;
+                foreach (var tc in contents) foreach (var pt in tc.Points) if (pt.Kind == PointKind.TrafficSignals && seen++ == want) { double sx = pt.E - OE, sz = pt.N - ON; cam = $"{sx - 9:F1},{sz - 9:F1},{sx:F1},{sz:F1},2.6,38"; goto found; }
+                found:;
+            }
             var q = (cam ?? "-8,-120,-30,60,2.0,62").Split(',');
             float px = float.Parse(q[0]), pz = float.Parse(q[1]), lx = float.Parse(q[2]), lz = float.Parse(q[3]), hh = float.Parse(q[4]);
             float gp = Ground(contents, px, pz), gl = Ground(contents, lx, lz);
@@ -301,7 +308,16 @@ static class Program
     static void CarScene(SoftRenderer r, Mats m, string scene)
     {
         var liv = CarLivery.PatrolCar();
-        var car = CarMesher.Build(BodyKind.Wagon, liv);
+        var lineup = new List<(CarModel car, CarLivery liv, float x)>();
+        if (scene == "carlineup")
+        {
+            float lx = -23f; int ci = 0; byte[][] cols = { new byte[] { 232, 232, 232 }, new byte[] { 36, 62, 120 }, new byte[] { 150, 30, 30 }, new byte[] { 24, 24, 26 }, new byte[] { 170, 172, 176 } };
+            foreach (BodyKind bk in new[] { BodyKind.Hatchback, BodyKind.Sedan, BodyKind.Suv, BodyKind.Wagon, BodyKind.Van }) { var c = cols[ci++ % cols.Length]; var lv = CarLivery.Civilian(c[0], c[1], c[2], "ZH 4" + ci + "7821"); lineup.Add((CarMesher.Build(bk, lv), lv, lx)); lx += 6.6f; }
+            lineup.Add((CarMesher.Build(BodyKind.Wagon, liv), liv, lx)); lx += 6.6f;
+            var ems = new CarLivery { Body = new byte[] { 238, 238, 232 }, Stripe = new byte[] { 220, 40, 30 }, LightBar = true, Plate = "BE 144144" }; lineup.Add((CarMesher.Build(BodyKind.Van, ems), ems, lx)); lx += 6.6f;
+            var tow = new CarLivery { Body = new byte[] { 230, 190, 40 }, LightBar = false, Plate = "BE 55 118" }; lineup.Add((CarMesher.Build(BodyKind.Van, tow), tow, lx));
+        }
+        var car = CarMesher.Build(Environment.GetEnvironmentVariable("CARKIND") != null ? (BodyKind)Enum.Parse(typeof(BodyKind), Environment.GetEnvironmentVariable("CARKIND")) : BodyKind.Wagon, liv);
         var decal = Mat.MakeMips(ProceduralTextures.DecalAtlas());
         var plate = Mat.MakeMips(ProceduralTextures.Plate(liv.Plate));
         var paint = new Mat { UseVertexColor = true, Specular = 0.95f, Gloss = 90, Sky = true };
@@ -316,19 +332,25 @@ static class Program
         var decalM = new Mat { Mips = decal, UseVertexColor = false, CutoutAlpha = true, Specular = 0.5f, Gloss = 40 };
         var interior = new Mat { UseVertexColor = true, DoubleSided = true, Specular = 0.05f };
         var mats = new[] { paint, glass, trim, lampF, lampR, amber, blue, blue, plateM, decalM, interior, chrome };
-        r.Add(car.Body, Matrix4x4.Identity, mats);
-
         var tyre = new Mat { UseVertexColor = true, Specular = 0.05f, Gloss = 8 };
         var rim = new Mat { UseVertexColor = true, Specular = 0.9f, Gloss = 80, Sky = true };
-        for (int i = 0; i < 4; i++)
+        if (lineup.Count == 0) lineup.Add((car, liv, 0f));
+        foreach (var (cm, lv, cx) in lineup)
         {
-            var c = car.WheelCentres[i];
-            var mt = (c[0] < 0 ? Matrix4x4.CreateRotationY((float)Math.PI) : Matrix4x4.Identity) * Matrix4x4.CreateTranslation(c[0], c[1], c[2]);
-            r.Add(car.Wheel, mt, tyre, rim);
+            var place = Matrix4x4.CreateTranslation(cx, 0, 0);
+            var plateL = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Plate(lv.Plate)), UseVertexColor = false, Specular = 0.3f };
+            var mm = (Mat[])mats.Clone(); mm[8] = plateL;
+            r.Add(cm.Body, place, mm);
+            for (int i = 0; i < 4; i++)
+            {
+                var c = cm.WheelCentres[i];
+                var mt = (c[0] < 0 ? Matrix4x4.CreateRotationY((float)Math.PI) : Matrix4x4.Identity) * Matrix4x4.CreateTranslation(c[0], c[1], c[2]) * place;
+                r.Add(cm.Wheel, mt, tyre, rim);
+            }
         }
         // ground plane
         var g = new MeshData(1);
-        float S = 60;
+        float S = scene == "carlineup" ? 90 : 60;
         g.AddVertex(-S, 0, -S, 0, 1, 0, -S * 0.15f, -S * 0.15f, 255, 255, 255); g.AddVertex(S, 0, -S, 0, 1, 0, S * 0.15f, -S * 0.15f, 255, 255, 255);
         g.AddVertex(S, 0, S, 0, 1, 0, S * 0.15f, S * 0.15f, 255, 255, 255); g.AddVertex(-S, 0, S, 0, 1, 0, -S * 0.15f, S * 0.15f, 255, 255, 255);
         g.AddTriangle(0, 0, 2, 1); g.AddTriangle(0, 0, 3, 2);
@@ -338,7 +360,8 @@ static class Program
         if (scene == "carrear") { r.CamPos = new Vector3(-4.2f, 1.5f, -6.0f); r.CamTarget = new Vector3(0, 0.8f, -0.4f); }
         if (scene == "carside") { r.CamPos = new Vector3(7.5f, 0.9f, -0.2f); r.CamTarget = new Vector3(0, 0.7f, 0.0f); r.FovY = 26; }
         if (scene == "carfront") { r.CamPos = new Vector3(-2.6f, 1.2f, 6.5f); r.CamTarget = new Vector3(0, 0.75f, 0.5f); r.FovY = 30; }
+        if (scene == "carlineup") { { float cx = float.Parse(Environment.GetEnvironmentVariable("LINEUPX") ?? "-1"); r.CamPos = new Vector3(cx - 9f, 1.5f, 21f); r.CamTarget = new Vector3(cx, 0.8f, 0f); r.FovY = 36; } }
         r.FogDensity = 1f / 9000f;
-        r.Render(new Vector3(0, 1, 0), 40);
+        r.Render(new Vector3(0, 1, 0), scene == "carlineup" ? 60 : 40);
     }
 }
