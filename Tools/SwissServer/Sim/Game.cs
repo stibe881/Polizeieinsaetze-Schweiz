@@ -72,7 +72,7 @@ namespace SwissServer.Sim
         public void NewGame(string corpsId, int seed, double? startE = null, double? startN = null)
         {
             Corps = PoliceCatalog.ById(corpsId) ?? PoliceCatalog.ById("KAPO_BE") ?? PoliceCatalog.All[0]; Seed = seed; Career = new CareerState(seed) { CorpsId = Corps.Id }; Cases.Clear(); ConsequenceLog.Clear(); Flags.Clear();
-            Clock = new GameClock { Start = new DateTime(2026, 10, 12, 7, 30, 0), TimeScale = 12f };
+            Clock = new GameClock { Start = new DateTime(2026, 10, 12, 9, 0, 0), TimeScale = 12f };
             ResetWorldState();
             double e, n; if (startE.HasValue && startN.HasValue) { e = startE.Value; n = startN.Value; } else FindStart(Corps, out e, out n);
             PE = VE = e; PN = VN = n; PH = VH = W.Height(e, n); if (double.IsNaN(PH)) PH = VH = 540; VE = e + 6; VYaw = 0; PInVehicle = false; PFuel = 1; PDamage = 0;
