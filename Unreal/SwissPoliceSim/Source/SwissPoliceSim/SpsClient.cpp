@@ -51,6 +51,18 @@ void ASpsClient::BeginPlay()
 {
 	Super::BeginPlay();
 	FString Override; if (FParse::Value(FCommandLine::Get(), TEXT("-SpsServer="), Override)) ServerUrl = Override;
+	// Das Basic-Level bringt eigene Himmel-/Licht-Objekte und einen Boden mit. Sie wuerden mit der Atmosphaere dieses Spiels kollidieren (mehrere Sonnen, Boden auf Z=0).
+	{
+		TArray<AActor*> Doomed; static const TCHAR* Names[] = { TEXT("DirectionalLight"), TEXT("SkyAtmosphere"), TEXT("SkyLight"), TEXT("ExponentialHeightFog"), TEXT("VolumetricCloud"), TEXT("StaticMeshActor") };
+		for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+		{
+			if (*It == this) continue;
+			const FString Cls = It->GetClass()->GetName();
+			for (const TCHAR* N : Names) if (Cls == N) { Doomed.Add(*It); break; }
+		}
+		for (AActor* A : Doomed) A->Destroy();
+		if (Doomed.Num() > 0) UE_LOG(LogTemp, Warning, TEXT("[SPS] %d Template-Objekte aus dem Level entfernt"), Doomed.Num());
+	}
 	Atmosphere = GetWorld()->SpawnActor<ASpsAtmosphere>(FVector::ZeroVector, FRotator::ZeroRotator);
 	Weather = GetWorld()->SpawnActor<ASpsWeather>(FVector::ZeroVector, FRotator::ZeroRotator);
 	// a flying "hover" pawn gives a sky view behind the menu until the game starts
@@ -126,7 +138,10 @@ void ASpsClient::HandleText(const TSharedPtr<FJsonObject>& J)
 		bStarted = true; bPlaying = true; DropAllTiles(); ClearEntities();
 		StartE = Num(J, TEXT("e")); StartN = Num(J, TEXT("n")); StartH = Num(J, TEXT("h")); StartVE = Num(J, TEXT("vE")); StartVN = Num(J, TEXT("vN")); StartVYaw = Num(J, TEXT("vYaw")); bStartInVehicle = Bool(J, TEXT("inVehicle"), false); StartYaw = static_cast<float>(Num(J, TEXT("pYaw")));
 		OriginE = FMath::FloorToDouble(StartE / 1000.0) * 1000.0; OriginN = FMath::FloorToDouble(StartN / 1000.0) * 1000.0;
-		bPlacePending = true;
+		bPlacePending = true; PlaceSince = FPlatformTime::Seconds(); PlaceLogAt = PlaceSince;
+		// bis der Boden fest ist: ueber der Startposition schweben (sonst sieht man das Gelaende von unten: Hoehen sind absolut, Bern liegt bei ~540 m)
+		if (PlayerFoot) PlayerFoot->SetActorLocation(ToWorld(StartE, StartN, StartH + 150.0));
+		UE_LOG(LogTemp, Warning, TEXT("[SPS] Spielstart bei E %.0f N %.0f H %.1f m, Ursprung %.0f/%.0f"), StartE, StartN, StartH, OriginE, OriginN);
 	}
 	else if (T == TEXT("state"))
 	{
@@ -308,10 +323,19 @@ void ASpsClient::TryPlacePlayer()
 	if (!Officer || !CarModel) return;
 	// wait until the ground under the start position is solid (collision of the first tile is cooked asynchronously)
 	FHitResult Hit; const FVector At = ToWorld(StartE, StartN, StartH);
-	if (!GetWorld()->LineTraceSingleByChannel(Hit, At + FVector(0, 0, 30000.f), At - FVector(0, 0, 30000.f), ECC_Visibility)) return;
+	const double Now = FPlatformTime::Seconds();
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, At + FVector(0, 0, 30000.f), At - FVector(0, 0, 30000.f), ECC_Visibility);
+	if (!bHit)
+	{
+		if (Now - PlaceLogAt > 3.0) { PlaceLogAt = Now; UE_LOG(LogTemp, Warning, TEXT("[SPS] Warte auf festen Boden bei Z=%.0f cm (%d Tiles geladen, %d in der Warteschlange)"), At.Z, Tiles.Num(), TileQueue.Num()); }
+		if (Now - PlaceSince < 12.0) return;
+		UE_LOG(LogTemp, Warning, TEXT("[SPS] Kein Boden-Treffer nach 12 s - platziere ohne Kollision auf der Server-Hoehe (Flugmodus)"));
+		Hit.ImpactPoint = At;
+		if (PlayerFoot) PlayerFoot->GetCharacterMovement()->SetMovementMode(MOVE_Flying);
+	}
 	const FVector Foot = Hit.ImpactPoint + FVector(0, 0, 100.f);
 	if (PlayerFoot && !PlayerFoot->bBodyReady) PlayerFoot->InitBody(*Officer);
-	if (PlayerFoot) { PlayerFoot->SetActorLocationAndRotation(Foot, FRotator(0, StartYaw, 0)); PlayerFoot->GetCharacterMovement()->SetMovementMode(MOVE_Walking); }
+	if (PlayerFoot) { PlayerFoot->SetActorLocationAndRotation(Foot, FRotator(0, StartYaw, 0)); if (bHit) PlayerFoot->GetCharacterMovement()->SetMovementMode(MOVE_Walking); }
 	FHitResult HitC; const FVector AtC = ToWorld(StartVE, StartVN, StartH);
 	FVector CarLoc = AtC; if (GetWorld()->LineTraceSingleByChannel(HitC, AtC + FVector(0, 0, 30000.f), AtC - FVector(0, 0, 30000.f), ECC_Visibility)) CarLoc = HitC.ImpactPoint;
 	CarLoc.Z += 105.f;   // the player car's actor origin is the middle of its collision box

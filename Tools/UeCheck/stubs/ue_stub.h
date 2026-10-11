@@ -167,7 +167,7 @@ template <class... A> struct TMulticastDelegate
 #define DECLARE_MULTICAST_DELEGATE_OneParam(Name, P) typedef TMulticastDelegate<P> Name;
 
 // ---------------------------------------------------------------- engine core
-struct UObject {}; struct UClass_Stub {};
+struct UClass; struct UObject { UClass* GetClass() const; }; struct UClass_Stub {};
 struct UInputComponent;
 struct UWorld; struct AActor; struct UPrimitiveComponent; struct APlayerController; struct AController;
 struct FCollisionQueryParams { FCollisionQueryParams(FName, bool, const AActor* = nullptr) {} void AddIgnoredActor(const AActor*) {} };
@@ -195,7 +195,7 @@ struct UProceduralMeshComponent : USceneComponent
 };
 struct UStaticMesh : UObject {}; struct USkeletalMesh : UObject {}; struct UAnimationAsset : UObject {};
 enum class EAnimationMode { AnimationSingleNode, AnimationBlueprint };
-struct UClass {}; struct UAnimInstance : UObject { UClass* GetClass() const { return nullptr; } };
+struct UClass : UObject { FString GetName() const { return FString(); } }; inline UClass* UObject::GetClass() const { return nullptr; } struct UAnimInstance : UObject {};
 struct FFloatProperty { void SetPropertyValue_InContainer(void*, float) {} }; struct FBoolProperty { void SetPropertyValue_InContainer(void*, bool) {} };
 template <class T> T* FindFProperty(UClass*, const TCHAR*) { return nullptr; }
 template <class T> UClass* LoadClass(UObject*, const TCHAR*) { return nullptr; }
