@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 /// <summary>Scripted end-to-end test of SwissServer: connects like the Unreal client, plays a short game and checks that every subsystem answers.</summary>
 static class P
 {
-    static ClientWebSocket ws; static readonly List<JsonElement> Texts = new List<JsonElement>(); static int tiles, snaps, models; static readonly HashSet<int> CarsSeen = new HashSet<int>(); static readonly object L = new object();
+    static readonly System.Net.Http.HttpClient Http = new System.Net.Http.HttpClient(); static ClientWebSocket ws; static readonly List<JsonElement> Texts = new List<JsonElement>(); static int tiles, snaps, models; static readonly HashSet<int> CarsSeen = new HashSet<int>(); static readonly object L = new object();
     static double E, N, H; static List<(int id, double e, double n, float v)> LastCars = new List<(int, double, double, float)>(); static int failures;
     static List<(int id, double e, double n)> LastActors = new List<(int, double, double)>();
 
@@ -31,6 +31,11 @@ static class P
             {
                 int idx = BitConverter.ToInt32(data, 1), cnt = BitConverter.ToInt32(data, 5); if (idx == 0) chunkBuf.SetLength(0); chunkBuf.Write(data, 9, data.Length - 9);
                 if (idx != cnt - 1) continue; data = chunkBuf.ToArray(); chunkBuf.SetLength(0);
+            }
+            if (r.MessageType == WebSocketMessageType.Text)
+            {   // HTTP-Tile-Download (wie der Unreal-Client): tileReady -> GET /tile/{token}
+                using (var d0 = JsonDocument.Parse(data)) if (d0.RootElement.TryGetProperty("t", out var tt) && tt.GetString() == "tileReady")
+                { var bytes = await Http.GetByteArrayAsync("http://127.0.0.1:47800/tile/" + d0.RootElement.GetProperty("token").GetString()); if (bytes.Length > 1 && bytes[0] == 1) tiles++; continue; }
             }
             if (r.MessageType == WebSocketMessageType.Text) { using var d = JsonDocument.Parse(data); lock (L) { Texts.Add(d.RootElement.Clone()); if (Texts.Count > 5000) Texts.RemoveRange(0, 1000); } }
             else
@@ -61,7 +66,7 @@ static class P
     static async Task<int> Main(string[] args)
     {
         string url = args.Length > 0 ? args[0] : "ws://127.0.0.1:47800/ws"; ws = new ClientWebSocket(); await ws.ConnectAsync(new Uri(url), CancellationToken.None); var rx = Receive();
-        await Send(new { t = "hello", role = "game", name = "selftest" }); var w = await WaitFor("welcome", 5000); Check(w != null, "welcome message received");
+        await Send(new { t = "hello", role = "game", name = "selftest", http = true }); var w = await WaitFor("welcome", 5000); Check(w != null, "welcome message received");
         if (w != null) Check(w.Value.GetProperty("corps").GetArrayLength() >= 26, $"corps list has {w.Value.GetProperty("corps").GetArrayLength()} entries (26 cantons + cities)");
         await Send(new { t = "new", corps = "KAPO_BE", seed = 5 }); var st = await WaitFor("started", 5000); Check(st != null, "game started");
         if (st == null) return 1; E = st.Value.GetProperty("e").GetDouble(); N = st.Value.GetProperty("n").GetDouble(); H = st.Value.GetProperty("h").GetDouble(); Console.WriteLine($"  start LV95 {E:F0}/{N:F0}/{H:F0}");

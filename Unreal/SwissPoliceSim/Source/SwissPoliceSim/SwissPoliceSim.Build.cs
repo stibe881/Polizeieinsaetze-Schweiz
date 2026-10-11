@@ -8,7 +8,7 @@ public class SwissPoliceSim : ModuleRules
 		PublicDependencyModuleNames.AddRange(new string[]
 		{
 			"Core", "CoreUObject", "Engine", "InputCore", "ProceduralMeshComponent",
-			"WebSockets", "Json", "JsonUtilities", "Slate", "SlateCore", "WebBrowser", "ApplicationCore"
+			"WebSockets", "HTTP", "Json", "JsonUtilities", "Slate", "SlateCore", "WebBrowser", "ApplicationCore"
 		});
 	}
 }

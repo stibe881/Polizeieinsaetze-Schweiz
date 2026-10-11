@@ -55,14 +55,15 @@ template <class T> using TFunctionRef = std::function<T>;
 template <class T> struct TObjectPtr { T* P = nullptr; TObjectPtr() {} TObjectPtr(T* p) : P(p) {} TObjectPtr& operator=(T* p) { P = p; return *this; } operator T*() const { return P; } T* operator->() const { return P; } T* Get() const { return P; } };
 template <class T> using TWeakObjectPtr_Base = T*;
 template <class T> struct TWeakObjectPtr { T* P = nullptr; TWeakObjectPtr() {} TWeakObjectPtr(T* p) : P(p) {} bool IsValid() const { return P != nullptr; } T* Get() const { return P; } };
-template <class T> struct TSharedPtr : std::shared_ptr<T>
+enum class ESPMode { ThreadSafe, NotThreadSafe };
+template <class T, ESPMode M = ESPMode::ThreadSafe> struct TSharedPtr : std::shared_ptr<T>
 {
 	TSharedPtr() {} TSharedPtr(std::nullptr_t) {} TSharedPtr(const std::shared_ptr<T>& p) : std::shared_ptr<T>(p) {}
-	template <class U> TSharedPtr(const TSharedPtr<U>& o) : std::shared_ptr<T>(o) {}
-	bool IsValid() const { return (bool)*this; } T* Get() const { return this->get(); } void Reset() { this->reset(); } TSharedPtr<T> ToSharedRef() const { return *this; }
+	template <class U, ESPMode M2> TSharedPtr(const TSharedPtr<U, M2>& o) : std::shared_ptr<T>(o) {}
+	bool IsValid() const { return (bool)*this; } T* Get() const { return this->get(); } void Reset() { this->reset(); } TSharedPtr<T, M> ToSharedRef() const { return *this; }
 };
-template <class T> using TSharedRef = TSharedPtr<T>;
-template <class T, class... A> TSharedPtr<T> MakeShared(A&&... a) { return TSharedPtr<T>(std::make_shared<T>(std::forward<A>(a)...)); }
+template <class T, ESPMode M = ESPMode::ThreadSafe> using TSharedRef = TSharedPtr<T, M>;
+template <class T, class... A> TSharedPtr<T, ESPMode::ThreadSafe> MakeShared(A&&... a) { return TSharedPtr<T, ESPMode::ThreadSafe>(std::make_shared<T>(std::forward<A>(a)...)); }
 
 template <class T> struct TArray
 {
@@ -323,3 +324,10 @@ struct FLogCategoryStub {}; static FLogCategoryStub LogTemp;
 #ifndef UE_LOG
 #define UE_LOG(Cat, Verb, Fmt, ...) ((void)0)
 #endif
+
+// http
+struct IHttpResponse { int32 GetResponseCode() const { return 200; } const TArray<uint8>& GetContent() const { static TArray<uint8> a; return a; } };
+struct IHttpRequest;
+struct FHttpRequestCompleteDelegate { template <class O, class F> void BindUObject(O*, F) {} };
+struct IHttpRequest { void SetURL(const FString&) {} void SetVerb(const FString&) {} FHttpRequestCompleteDelegate& OnProcessRequestComplete() { static FHttpRequestCompleteDelegate d; return d; } bool ProcessRequest() { return true; } };
+struct FHttpModule { static FHttpModule& Get() { static FHttpModule m; return m; } TSharedRef<IHttpRequest> CreateRequest() { return MakeShared<IHttpRequest>(); } };

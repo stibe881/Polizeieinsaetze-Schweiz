@@ -1,6 +1,9 @@
 #include "SpsClient.h"
 #include "WebSocketsModule.h"
 #include "IWebSocket.h"
+#include "HttpModule.h"
+#include "Interfaces/IHttpRequest.h"
+#include "Interfaces/IHttpResponse.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -38,6 +41,7 @@ ASpsClient::ASpsClient()
 	if (GConfig) { GConfig->GetString(TEXT("/Script/SwissPoliceSim.SpsSettings"), TEXT("ServerHost"), Host, GGameIni); GConfig->GetInt(TEXT("/Script/SwissPoliceSim.SpsSettings"), TEXT("ServerPort"), Port, GGameIni); }
 	ServerUrl = FString::Printf(TEXT("ws://%s:%d/ws"), *Host, Port);
 	UiUrl = FString::Printf(TEXT("http://%s:%d/?embedded=1"), *Host, Port);
+	HttpBase = FString::Printf(TEXT("http://%s:%d"), *Host, Port);
 }
 
 ASpsClient* ASpsClient::Get(UWorld* World)
@@ -94,7 +98,7 @@ void ASpsClient::OnConnected()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[SPS] Verbunden mit dem Server"));
 	bConnected = true; Requested.Reset();
-	SendText(TEXT("{\"t\":\"hello\",\"role\":\"game\",\"name\":\"unreal\"}"));
+	SendText(TEXT("{\"t\":\"hello\",\"role\":\"game\",\"name\":\"unreal\",\"http\":true}"));
 	RequestModel(GOfficerModel); RequestModel(GPoliceCarModel);
 }
 
@@ -117,6 +121,20 @@ void ASpsClient::RequestModel(const FString& Key)
 
 void ASpsClient::OnText(const FString& Msg) { TextQueue.Add(Msg); }
 
+void ASpsClient::FetchTile(const FString& Token)
+{
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+	Req->SetURL(HttpBase + TEXT("/tile/") + Token); Req->SetVerb(TEXT("GET"));
+	Req->OnProcessRequestComplete().BindUObject(this, &ASpsClient::OnTileHttp);
+	Req->ProcessRequest();
+}
+
+void ASpsClient::OnTileHttp(TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> Req, TSharedPtr<IHttpResponse, ESPMode::ThreadSafe> Resp, bool bOk)
+{
+	if (!bOk || !Resp.IsValid() || Resp->GetResponseCode() != 200) { UE_LOG(LogTemp, Warning, TEXT("[SPS] Tile-Download fehlgeschlagen (HTTP %d)"), Resp.IsValid() ? Resp->GetResponseCode() : 0); return; }
+	BinaryQueue.Add(Resp->GetContent());
+}
+
 void ASpsClient::OnBinary(const void* Data, SIZE_T Size, bool bLast)
 {
 	const int32 Old = Reassembly.Num(); Reassembly.AddUninitialized(static_cast<int32>(Size)); FMemory::Memcpy(Reassembly.GetData() + Old, Data, Size);
@@ -133,6 +151,7 @@ void ASpsClient::OnPlayerCrash(AActor* Other, float ImpactMs)
 void ASpsClient::HandleText(const TSharedPtr<FJsonObject>& J)
 {
 	const FString T = Str(J, TEXT("t"));
+	if (T == TEXT("tileReady")) { FetchTile(Str(J, TEXT("token"))); return; }
 	if (T == TEXT("started"))
 	{
 		bStarted = true; bPlaying = true; DropAllTiles(); ClearEntities();
@@ -401,6 +420,13 @@ void ASpsClient::Tick(float Dt)
 	TArray<TArray<uint8>> Bins = MoveTemp(BinaryQueue); BinaryQueue.Reset();
 	for (const TArray<uint8>& B : Bins) HandleBinary(B);
 	MaybeRebase(); ProcessTiles(0.006); ProcessTrees(); ProcessSpawns(); ProcessProps(); ApplySnapshot(); TryPlacePlayer();
+	// Diagnose: alle 6 s Lage des Spielers und Anzahl Tiles (hilft bei "ich sehe nichts")
+	StatusTimer += Dt;
+	if (StatusTimer > 6.f && bStarted)
+	{
+		StatusTimer = 0.f; const AActor* Ref = (PlayerCar && PlayerCar->bOccupied) ? static_cast<AActor*>(PlayerCar) : static_cast<AActor*>(PlayerFoot);
+		if (Ref) { const FVector P = Ref->GetActorLocation(); FHitResult H; const bool bGround = GetWorld()->LineTraceSingleByChannel(H, P, P - FVector(0, 0, 20000.f), ECC_Visibility); UE_LOG(LogTemp, Warning, TEXT("[SPS] Status: Spieler (%.0f, %.0f, %.0f) cm, %d Tiles, %d in der Warteschlange, Boden darunter: %s%s"), P.X, P.Y, P.Z, Tiles.Num(), TileQueue.Num(), bGround ? TEXT("ja") : TEXT("nein"), bPlacePending ? TEXT(", Platzierung steht aus") : TEXT("")); }
+	}
 	PoseTimer += Dt; if (PoseTimer >= 0.1f) { PoseTimer = 0.f; SendPose(); }
 	if (ReconnectIn >= 0.f) { ReconnectIn -= Dt; if (ReconnectIn < 0.f) { ReconnectIn = -1.f; if (Socket.IsValid()) { Socket->OnConnected().RemoveAll(this); Socket->OnMessage().RemoveAll(this); Socket->OnBinaryMessage().RemoveAll(this); Socket.Reset(); } Connect(); } }
 }

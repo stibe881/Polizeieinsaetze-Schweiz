@@ -56,6 +56,7 @@ namespace SwissServer
             {
                 if (!store.Macro.TryGetValue(WorldStore.Key(x, y), out var b)) return Results.NotFound(); return Results.File(Png.EncodeRgba(256, 256, MapRasterizer.RenderMacro(b, 256)), "image/png");
             });
+            app.MapGet("/tile/{token}", (string token) => hub.TileStore.TryRemove(token, out var t) ? Results.Bytes(t.data, "application/octet-stream") : Results.NotFound());
             app.MapGet("/api/status", () => Results.Json(new { world = store.Manifest.name, tiles = store.TileCount, playing = hub.Game.Playing }));
             var cts = new CancellationTokenSource(); Console.CancelKeyPress += (s, e) => { e.Cancel = true; cts.Cancel(); };
             var loop = hub.RunAsync(cts.Token); Console.WriteLine($"Swiss Police Simulator server on http://127.0.0.1:{port}  (WebSocket /ws, web UI /)");

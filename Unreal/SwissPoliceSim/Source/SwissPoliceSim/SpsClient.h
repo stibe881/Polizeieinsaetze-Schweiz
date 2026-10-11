@@ -57,7 +57,7 @@ public:
 	/** Called when the UI asks for focus; the controller switches input mode. */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnUiFocus, bool);
 	FOnUiFocus OnUiFocus;
-	FString ServerUrl, UiUrl;
+	FString ServerUrl, UiUrl, HttpBase;   // HttpBase: z.B. http://127.0.0.1:47800 (Tile-Download)
 	const FSpsModelData* FindModel(const FString& Key) const { const TSharedPtr<FSpsModelData>* M = Models.Find(Key); return M ? M->Get() : nullptr; }
 
 private:
@@ -80,12 +80,15 @@ private:
 	TObjectPtr<ASpsWeather> Weather;
 	void MaybeRebase();
 	float ReconnectIn = -1.f;
+	float StatusTimer = 0.f;
 	TArray<uint8> ChunkBuffer;   // Zwischenspeicher fuer in Chunks gesendete Grossframes
 	float PoseTimer = 0.f; double StartE = 0, StartN = 0, StartH = 0, StartVE = 0, StartVN = 0, StartVYaw = 0; bool bPlacePending = false; double PlaceSince = 0.0, PlaceLogAt = 0.0; bool bStartInVehicle = false; float StartYaw = 0.f;
 
 	void Connect();
 	void OnConnected();
 	void OnText(const FString& Msg);
+	void FetchTile(const FString& Token);
+	void OnTileHttp(TSharedPtr<class IHttpRequest, ESPMode::ThreadSafe> Req, TSharedPtr<class IHttpResponse, ESPMode::ThreadSafe> Resp, bool bOk);
 	void OnBinary(const void* Data, SIZE_T Size, bool bLast);
 	void HandleText(const TSharedPtr<FJsonObject>& J);
 	void HandleBinary(const TArray<uint8>& Data);

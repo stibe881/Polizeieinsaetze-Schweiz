@@ -19,7 +19,7 @@ namespace SwissServer.Net
     /// <summary>One WebSocket peer: the Unreal client ("game") or a web UI ("ui"). Outgoing frames are queued so the game thread never blocks on the network.</summary>
     public sealed class ClientConn
     {
-        public readonly int Id; public readonly WebSocket Ws; public string Role = "ui"; public string Name = "";
+        public readonly int Id; public readonly WebSocket Ws; public string Role = "ui"; public string Name = ""; public bool TileHttp;
         readonly Channel<(byte[] data, WebSocketMessageType type)> _out = Channel.CreateUnbounded<(byte[], WebSocketMessageType)>();
         public readonly Dictionary<TileId, int> Tiles = new Dictionary<TileId, int>(); public readonly HashSet<TileId> Building = new HashSet<TileId>(); public readonly HashSet<string> Models = new HashSet<string>();
         public readonly Dictionary<TileId, (double e, double n)> DetailAt = new Dictionary<TileId, (double, double)>(); public readonly HashSet<int> Cars = new HashSet<int>(), Peds = new HashSet<int>(); public int PropsVersion = -1, ActorsVersion = -1; public bool Closed;
@@ -104,7 +104,7 @@ namespace SwissServer.Net
             string t = m.GetProperty("t").GetString(); var g = Game;
             switch (t)
             {
-                case "hello": c.Role = m.TryGetProperty("role", out var r) ? r.GetString() : "ui"; c.Name = m.TryGetProperty("name", out var nm) ? nm.GetString() : ""; OnConnected(c); if (g.Playing) { c.SendText(JsonSerializer.Serialize(new { t = "started", e = g.PE, n = g.PN, h = g.PH, vE = g.VE, vN = g.VN, vYaw = g.VYaw, corps = g.Corps.Name, seed = g.Seed, resumed = true }, Json)); } break;
+                case "hello": c.Role = m.TryGetProperty("role", out var r) ? r.GetString() : "ui"; c.TileHttp = m.TryGetProperty("http", out var hp) && hp.ValueKind == JsonValueKind.True; c.Name = m.TryGetProperty("name", out var nm) ? nm.GetString() : ""; OnConnected(c); if (g.Playing) { c.SendText(JsonSerializer.Serialize(new { t = "started", e = g.PE, n = g.PN, h = g.PH, vE = g.VE, vN = g.VN, vYaw = g.VYaw, corps = g.Corps.Name, seed = g.Seed, resumed = true }, Json)); } break;
                 case "new": g.NewGame(m.GetProperty("corps").GetString(), m.TryGetProperty("seed", out var sd) ? sd.GetInt32() : 1, m.TryGetProperty("e", out var se) ? se.GetDouble() : (double?)null, m.TryGetProperty("n", out var sn) ? sn.GetDouble() : (double?)null); ResetClients(); break;
                 case "load": if (g.Load(m.GetProperty("slot").GetInt32())) ResetClients(); break;
                 case "save": if (g.Playing) g.Save(m.GetProperty("slot").GetInt32()); break;
@@ -153,6 +153,16 @@ namespace SwissServer.Net
 
         bool Stale(ClientConn c, TileId id) { if (!c.DetailAt.TryGetValue(id, out var d)) return true; double dx = d.e - Game.PE, dn = d.n - Game.PN; return dx * dx + dn * dn > 120 * 120; }
 
+        // Tiles fuer HTTP-Clients: Nutzdaten kurz im Speicher ablegen, der Client holt sie per GET /tile/{token} (der Unreal-WebSocket schafft nur ~1 MB/s)
+        public readonly ConcurrentDictionary<string, (byte[] data, DateTime at)> TileStore = new ConcurrentDictionary<string, (byte[], DateTime)>();
+        void SendTile(ClientConn c, byte[] payload)
+        {
+            if (!c.TileHttp) { c.SendBinary(payload); return; }
+            var now = DateTime.UtcNow; foreach (var kv in TileStore) if ((now - kv.Value.at).TotalSeconds > 120) TileStore.TryRemove(kv.Key, out _);
+            string token = Guid.NewGuid().ToString("N"); TileStore[token] = (payload, now);
+            c.SendText("{\"t\":\"tileReady\",\"token\":\"" + token + "\"}");
+        }
+
         bool StreamOneTile(ClientConn c)
         {
             var ft = TileGrid.FromLv95(Game.PE, Game.PN);
@@ -169,7 +179,7 @@ namespace SwissServer.Net
             c.Building.Add(best); Interlocked.Increment(ref _tileJobs); var id2 = best; int q2 = bestQ; double de = Game.PE, dn2 = Game.PN;
             Task.Run(() =>
             {
-                try { var sw = System.Diagnostics.Stopwatch.StartNew(); var payload = TileWire.Build(W, id2, q2, de, dn2); if (Environment.GetEnvironmentVariable("SPS_LOG_TILES") != null) Console.WriteLine($"tile {id2.X}-{id2.Y} q{q2}: {sw.ElapsedMilliseconds} ms, {(payload?.Length ?? 0) / 1024} kB"); if (payload != null) { c.SendBinary(payload); lock (c.Tiles) { c.Tiles[id2] = q2; c.DetailAt[id2] = (de, dn2); } } }
+                try { var sw = System.Diagnostics.Stopwatch.StartNew(); var payload = TileWire.Build(W, id2, q2, de, dn2); if (Environment.GetEnvironmentVariable("SPS_LOG_TILES") != null) Console.WriteLine($"tile {id2.X}-{id2.Y} q{q2}: {sw.ElapsedMilliseconds} ms, {(payload?.Length ?? 0) / 1024} kB"); if (payload != null) { SendTile(c, payload); lock (c.Tiles) { c.Tiles[id2] = q2; c.DetailAt[id2] = (de, dn2); } } }
                 catch (Exception ex) { Console.WriteLine($"tile {id2.X}-{id2.Y}: {ex.Message}"); }
                 finally { lock (c.Building) c.Building.Remove(id2); Interlocked.Decrement(ref _tileJobs); }
             });
