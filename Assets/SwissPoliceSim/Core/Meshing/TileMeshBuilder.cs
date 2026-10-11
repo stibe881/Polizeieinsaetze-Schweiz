@@ -22,7 +22,7 @@ namespace SwissPoliceSim.Core.Meshing
         public List<RailFeature> Rails = new List<RailFeature>();
         public List<PoiFeature> Pois = new List<PoiFeature>();
         public List<BuildingFeature> Buildings = new List<BuildingFeature>();
-        public MeshData RoadMesh, BuildingMesh, BuildingMeshDetail, WaterMesh, FurnitureMesh;
+        public MeshData RoadMesh, BuildingMesh, BuildingMeshDetail, WaterMesh, FurnitureMesh, RailMesh;
     }
 
     public static class TileMeshBuilder
@@ -68,6 +68,8 @@ namespace SwissPoliceSim.Core.Meshing
                 }
             t.RoadMesh = rm;
             t.FurnitureMesh = FurnitureMesher.Build(t.Points, t.Roads, te, tn, ground);
+
+            var rl = RailMesher.NewMesh(); foreach (var r in t.Rails) RailMesher.AddRail(rl, r, te, tn, ground, detail); t.RailMesh = rl;
 
             var bm = BuildingMesher.NewMesh();
             foreach (var b in t.Buildings)

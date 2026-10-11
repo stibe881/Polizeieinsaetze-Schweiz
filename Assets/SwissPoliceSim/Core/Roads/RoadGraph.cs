@@ -10,6 +10,9 @@ namespace SwissPoliceSim.Core.Roads
         public List<double> N = new List<double>();
         public double DistanceMeters;
         public double TimeSeconds;
+        public List<string> SegmentNames = new List<string>();       // street name of segment i (NodeIds[i-1] → NodeIds[i]); index 0 unused
+        public List<RoadClass> SegmentClass = new List<RoadClass>();
+        public List<bool> SegmentRoundabout = new List<bool>();
         public int Count => NodeIds.Count;
     }
 
@@ -19,7 +22,10 @@ namespace SwissPoliceSim.Core.Roads
     /// </summary>
     public sealed class RoadGraph
     {
-        struct Edge { public int To; public float Length; public float Seconds; }
+        struct Edge { public int To; public float Length; public float Seconds; public int Name; public RoadClass Class; public bool Roundabout; }
+        readonly List<string> _names = new List<string> { "" }; readonly Dictionary<string, int> _nameIdx = new Dictionary<string, int>();
+        public string NameOf(int id) => _names[id];
+        int NameId(string n) { if (string.IsNullOrEmpty(n)) return 0; if (_nameIdx.TryGetValue(n, out int i)) return i; i = _names.Count; _names.Add(n); _nameIdx[n] = i; return i; }
 
         readonly Dictionary<long, int> _index = new Dictionary<long, int>();
         readonly List<long> _ids = new List<long>();
@@ -64,8 +70,9 @@ namespace SwissPoliceSim.Core.Roads
                 int b = GetOrAdd(w.NodeIds[k], w.E[k], w.N[k]);
                 if (a == b) continue;
                 double len = Dist(a, b);
-                var fwd = new Edge { To = b, Length = (float)len, Seconds = (float)(len / ms) };
-                var bwd = new Edge { To = a, Length = (float)len, Seconds = (float)(len / ms) };
+                int nm = NameId(string.IsNullOrEmpty(w.Name) ? w.Ref : w.Name);
+                var fwd = new Edge { To = b, Length = (float)len, Seconds = (float)(len / ms), Name = nm, Class = w.Class, Roundabout = w.Roundabout };
+                var bwd = new Edge { To = a, Length = (float)len, Seconds = (float)(len / ms), Name = nm, Class = w.Class, Roundabout = w.Roundabout };
                 if (w.OneWay != OneWay.Reverse) { _adj[a].Add(fwd); EdgeCount++; }
                 if (w.OneWay != OneWay.Forward) { _adj[b].Add(bwd); EdgeCount++; }
             }
@@ -104,6 +111,7 @@ namespace SwissPoliceSim.Core.Roads
         public long IdAt(int index) => _ids[index];
         public int OutCount(int index) => _adj[index].Count;
         public void OutEdge(int index, int k, out int to, out float lengthM, out float seconds) { var e = _adj[index][k]; to = e.To; lengthM = e.Length; seconds = e.Seconds; }
+        public void OutEdgeInfo(int index, int k, out string name, out RoadClass cls, out bool roundabout) { var e = _adj[index][k]; name = _names[e.Name]; cls = e.Class; roundabout = e.Roundabout; }
 
         /// <summary>Direction (unit vector, E/N) of the first outgoing edge of a node; false for dead-end nodes without edges.</summary>
         public bool TryGetNodeHeading(int node, out double dirE, out double dirN)
@@ -153,6 +161,13 @@ namespace SwissPoliceSim.Core.Roads
             {
                 double de = path.E[i] - path.E[i - 1], dn = path.N[i] - path.N[i - 1];
                 path.DistanceMeters += Math.Sqrt(de * de + dn * dn);
+            }
+            path.SegmentNames.Add(""); path.SegmentClass.Add(RoadClass.Residential); path.SegmentRoundabout.Add(false);
+            for (int i = 1; i < path.Count; i++)
+            {
+                int u = _index[path.NodeIds[i - 1]], v = _index[path.NodeIds[i]]; string nm = ""; var cl = RoadClass.Residential; bool rb = false;
+                for (int k = 0; k < _adj[u].Count; k++) if (_adj[u][k].To == v) { nm = _names[_adj[u][k].Name]; cl = _adj[u][k].Class; rb = _adj[u][k].Roundabout; break; }
+                path.SegmentNames.Add(nm); path.SegmentClass.Add(cl); path.SegmentRoundabout.Add(rb);
             }
             return path;
         }

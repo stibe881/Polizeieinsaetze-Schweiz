@@ -138,7 +138,7 @@ namespace SwissPoliceSim.Core.Roads
             double ge = 0, gn = 0; bool haveGoal = false;
             foreach (var g in layers) if (g.TryGetIndex(goal, out int gi)) { g.GetNodePosition(gi, out ge, out gn); haveGoal = true; break; }
             if (!haveGoal) return null;
-            var gs = new Dictionary<long, double>(); var prev = new Dictionary<long, long>(); var closed = new HashSet<long>();
+            var gs = new Dictionary<long, double>(); var prev = new Dictionary<long, long>(); var pinfo = new Dictionary<long, (string, RoadClass, bool)>(); var closed = new HashSet<long>();
             var open = new Heap(); gs[start] = 0; open.Push(start, 0); int expanded = 0;
             while (open.Count > 0)
             {
@@ -155,7 +155,7 @@ namespace SwissPoliceSim.Core.Roads
                         double ng = gu + sec;
                         if (!gs.TryGetValue(vid, out double old) || ng < old)
                         {
-                            gs[vid] = ng; prev[vid] = u; g.GetNodePosition(to, out double ve, out double vn);
+                            gs[vid] = ng; prev[vid] = u; g.GetNodePosition(to, out double ve, out double vn); g.OutEdgeInfo(ui, k, out var enm, out var ecl, out var erb); pinfo[vid] = (enm, ecl, erb);
                             open.Push(vid, ng + Math.Sqrt((ve - ge) * (ve - ge) + (vn - gn) * (vn - gn)) / Vmax);
                         }
                     }
@@ -169,6 +169,8 @@ namespace SwissPoliceSim.Core.Roads
             foreach (long id in path.NodeIds)
                 foreach (var g in layers) if (g.TryGetIndex(id, out int i)) { g.GetNodePosition(i, out double e, out double n); path.E.Add(e); path.N.Add(n); break; }
             for (int i = 1; i < path.Count; i++) { double de = path.E[i] - path.E[i - 1], dn = path.N[i] - path.N[i - 1]; path.DistanceMeters += Math.Sqrt(de * de + dn * dn); }
+            path.SegmentNames.Add(""); path.SegmentClass.Add(RoadClass.Residential); path.SegmentRoundabout.Add(false);
+            for (int i = 1; i < path.Count; i++) { var pi = pinfo[path.NodeIds[i]]; path.SegmentNames.Add(pi.Item1); path.SegmentClass.Add(pi.Item2); path.SegmentRoundabout.Add(pi.Item3); }
             return path;
         }
 

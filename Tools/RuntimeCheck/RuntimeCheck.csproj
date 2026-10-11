@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Compile-checks the Unity runtime code against the real UnityEngine API surface (UnityEngine.Modules 2021.3 reference assemblies) plus minimal stubs for URP / UGUI. Nothing is executed. -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>CS0618;CS0649;CS0169;CS0414;CS0219;CS8981</NoWarn>
+    <DefineConstants>UNITY_2021_3_OR_NEWER;SPS_URP</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" />
+    <Compile Include="../../Assets/SwissPoliceSim/Core/**/*.cs" />
+    <Compile Include="../../Assets/SwissPoliceSim/Runtime/**/*.cs" />
+    <Compile Include="Stubs/**/*.cs" />
+  </ItemGroup>
+</Project>

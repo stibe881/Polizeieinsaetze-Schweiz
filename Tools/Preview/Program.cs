@@ -33,6 +33,8 @@ static class Program
         var mats = new Mats();
         if (scene.StartsWith("car")) { CarScene(r, mats, scene); }
         else if (scene == "trees") { TreeScene(r, mats); }
+        else if (scene == "people") { PeopleScene(r, mats); }
+        else if (scene == "map") { MapScene(data, outPath); return 0; }
         else WorldScene(r, mats, data, scene, cam);
         r.SavePng(outPath);
         Console.WriteLine("wrote " + outPath);
@@ -57,12 +59,66 @@ static class Program
         public Mat Trim = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Stone()), Specular = 0.03f, DoubleSided = true };
         public Mat ShutterM = new Mat { Mips = Mat.MakeMips(ProceduralTextures.ShutterSlats()), Specular = 0.05f, DoubleSided = true };
         public Mat Railing = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Railing()), CutoutAlpha = true, DoubleSided = true };
+        public Mat Gravel = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Gravel()), UvScale = 1f };
+        public Mat Concrete = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Stone()), UseVertexColor = true };
         public Mat Water = new Mat { Mips = Mat.MakeMips(ProceduralTextures.Water()), Alpha = 0.82f, Specular = 0.9f, Gloss = 180, Sky = true, UseVertexColor = false, DoubleSided = true };
         public Mat Metal = new Mat { UseVertexColor = true, Specular = 0.3f, Gloss = 30 };
         public Mat Lens = new Mat { UseVertexColor = true, Emissive = new Vector3(0.35f), Specular = 0.5f };
         public Mat SignFace = new Mat { UseVertexColor = true, Specular = 0.3f, DoubleSided = true };
         public Mat Trunk = new Mat { UseVertexColor = true };
         public Mat Foliage = new Mat { Mips = Mat.MakeMips(ProceduralTextures.FoliageAtlas()), UseVertexColor = true, CutoutAlpha = true, DoubleSided = true, Specular = 0.04f };
+    }
+
+    static void MapScene(string data, string outPath)
+    {
+        var src = new LooseTileSource(data); int cx = (int)Math.Floor(OE / 1000), cy = (int)Math.Floor(ON / 1000); int N = 5, res = 400;
+        var big = new byte[N * res * N * res * 3];
+        for (int dx = -2; dx <= 2; dx++) for (int dy = -2; dy <= 2; dy++)
+        {
+            if (!src.TryRead(new TileId(cx + dx, cy + dy), out var bytes)) continue;
+            var t = TileMeshBuilder.Build(bytes, false); var px = MapRasterizer.RenderTile(t, res);
+            for (int y = 0; y < res; y++) for (int x = 0; x < res; x++)
+            {
+                int gx = (dx + 2) * res + x, gy = (N - 1 - (dy + 2)) * res + (res - 1 - y);        // flip: image row 0 = north
+                int o = (gy * N * res + gx) * 3, i = (y * res + x) * 4; big[o] = px[i]; big[o + 1] = px[i + 1]; big[o + 2] = px[i + 2];
+            }
+        }
+        PngWriter.Write(outPath, N * res, N * res, big);
+    }
+
+    static void PeopleScene(SoftRenderer r, Mats m)
+    {
+        var ground = new MeshData(1);
+        ground.AddQuad(0, new[] { -60f, 0, 60f }, new[] { 60f, 0, 60f }, new[] { 60f, 0, -30f }, new[] { -60f, 0, -30f }, 0, 0, 30, 30, 120, 120, 118);
+        r.Add(ground, Matrix4x4.Identity, m.Sidewalk);
+        var body = new Mat { UseVertexColor = true, Specular = 0.04f, Gloss = 8, DoubleSided = Environment.GetEnvironmentVariable("DBL") != null }; var leather = new Mat { UseVertexColor = true, Specular = 0.35f, Gloss = 40 };
+        var patch = new Mat { Mips = Mat.MakeMips(ProceduralTextures.UniformPatch()), UseVertexColor = false, Specular = 0.2f };
+        var specs = new List<HumanSpec>
+        {
+            HumanSpec.Officer(false, 1, true), HumanSpec.Officer(true, 2, false),
+            HumanSpec.FromPed(false, false, false, 1, 0, 1, 1, 1.82f, 3), HumanSpec.FromPed(true, false, false, 2, 7, 0, 3, 1.66f, 4), HumanSpec.FromPed(false, false, true, 6, 3, 2, 4, 1.70f, 5),
+            HumanSpec.FromPed(true, true, false, 7, 5, 4, 5, 1.22f, 6), HumanSpec.FromPed(false, false, false, 4, 1, 5, 6, 1.78f, 7)
+        };
+        float x = -2.9f; int k = 0;
+        foreach (var sp in specs)
+        {
+            var model = HumanMesher.Build(sp, 0);
+            var world = new Dictionary<string, Matrix4x4>();
+            foreach (var part in model.Parts)
+            {
+                var local = Matrix4x4.CreateTranslation(part.Pivot[0], part.Pivot[1], part.Pivot[2]);
+                if (part.Name.StartsWith("UpperArm")) local = Matrix4x4.CreateRotationZ((part.Name.EndsWith("L") ? 1 : -1) * 0.06f) * local;
+                var parent = part.Parent == null ? Matrix4x4.CreateTranslation(x, 0, 6) * Matrix4x4.CreateRotationY(0.0f) : world[part.Parent];
+                var wm = local * parent; world[part.Name] = wm;
+                r.Add(part.Mesh, wm, body, leather, patch);
+            }
+            x += 1.0f; k++;
+        }
+        r.CamPos = new Vector3(0.0f, 1.55f, -2.2f); r.CamTarget = new Vector3(0.0f, 1.05f, 6); r.FovY = 38;
+        r.CamPos = new Vector3(-2.2f, 1.5f, 10.2f); r.CamTarget = new Vector3(0.0f, 1.0f, 6); r.FovY = 32;
+        if (Environment.GetEnvironmentVariable("PEOPLE_CLOSE") != null) { r.CamPos = new Vector3(-4.2f, 1.2f, 8.5f); r.CamTarget = new Vector3(-2.0f, 0.95f, 6); r.FovY = 22; r.PostFx = false; }
+        r.SunDir = Vector3.Normalize(new Vector3(-0.4f, -0.6f, 0.55f)); r.SunColor = new Vector3(1.0f, 0.95f, 0.85f) * 2.6f;
+        r.Render(new Vector3(0, 0, 6), 80);
     }
 
     static void TreeScene(SoftRenderer r, Mats m)
@@ -102,6 +158,7 @@ static class Program
             r.Add(t.FurnitureMesh, off, m.Metal, m.Lens, m.SignFace);
             r.Add(t.BuildingMeshDetail ?? t.BuildingMesh, off, m.Facade0, m.Facade1, m.Facade2, m.RoofPitched, m.RoofFlat, m.Plaster, m.Window, m.Trim, m.ShutterM, m.Railing);
             if (t.WaterMesh != null) r.Add(t.WaterMesh, off, m.Water);
+            if (t.RailMesh != null) r.Add(t.RailMesh, off, m.Gravel, m.Metal, m.Concrete, m.Metal);
         }
 
         if (scene == "drive") { DriveScene(r, m, contents, cam); return; }
@@ -231,41 +288,7 @@ static class Program
         return 540;
     }
 
-    static MeshData TerrainMesh(TileContent t, int stride)
-    {
-        var d = t.Terrain; var m = new MeshData(1); if (d == null) return m;
-        int res = d.Resolution, n = (res - 1) / stride + 1; float sp = d.Spacing * stride;
-        var tint = new Dictionary<byte, byte[]>
-        {
-            [0] = new byte[] { 190, 205, 150 }, [(byte)LandUseClass.Grass] = new byte[] { 185, 205, 140 }, [(byte)LandUseClass.Forest] = new byte[] { 110, 140, 90 },
-            [(byte)LandUseClass.Farmland] = new byte[] { 190, 170, 110 }, [(byte)LandUseClass.Orchard] = new byte[] { 130, 165, 95 }, [(byte)LandUseClass.Vineyard] = new byte[] { 150, 160, 90 },
-            [(byte)LandUseClass.Residential] = new byte[] { 160, 165, 130 }, [(byte)LandUseClass.Commercial] = new byte[] { 150, 148, 140 }, [(byte)LandUseClass.Industrial] = new byte[] { 140, 138, 132 },
-            [(byte)LandUseClass.Park] = new byte[] { 175, 205, 140 }, [(byte)LandUseClass.Cemetery] = new byte[] { 120, 160, 100 }, [(byte)LandUseClass.Rock] = new byte[] { 150, 145, 135 },
-            [(byte)LandUseClass.Scree] = new byte[] { 160, 155, 145 }, [(byte)LandUseClass.Water] = new byte[] { 70, 60, 45 }, [(byte)LandUseClass.Parking] = new byte[] { 130, 130, 128 },
-            [(byte)LandUseClass.Railway] = new byte[] { 120, 115, 105 }, [(byte)LandUseClass.Plaza] = new byte[] { 165, 160, 150 }, [(byte)LandUseClass.Urban] = new byte[] { 150, 146, 138 }, [(byte)LandUseClass.Sports] = new byte[] { 110, 165, 85 }, [(byte)LandUseClass.Wetland] = new byte[] { 110, 140, 90 }
-        };
-        for (int j = 0; j < n; j++)
-            for (int i = 0; i < n; i++)
-            {
-                int c = Math.Min(res - 1, i * stride), r = Math.Min(res - 1, j * stride);
-                float x = c * d.Spacing, z = r * d.Spacing, y = d.Height(c, r);
-                float hx = d.Height(Math.Min(res - 1, c + 1), r) - d.Height(Math.Max(0, c - 1), r), hz = d.Height(c, Math.Min(res - 1, r + 1)) - d.Height(c, Math.Max(0, r - 1));
-                float nx = -hx, nz = -hz, ny = 2 * d.Spacing, l = (float)Math.Sqrt(nx * nx + ny * ny + nz * nz);
-                byte cls = 0;
-                if (t.LandUse != null) cls = t.LandUse[Math.Min(127, (int)(z / 7.8125f)) * 128 + Math.Min(127, (int)(x / 7.8125f))];
-                var col = tint.TryGetValue(cls, out var cc) ? cc : tint[0];
-                float slope = 1f - ny / l; float rock = Math.Min(1, Math.Max(0, (slope - 0.18f) * 4));
-                byte rr = (byte)(col[0] * (1 - rock) + 130 * rock), gg = (byte)(col[1] * (1 - rock) + 125 * rock), bb = (byte)(col[2] * (1 - rock) + 115 * rock);
-                m.AddVertex(x, y, z, nx / l, ny / l, nz / l, (t.Tile.X * 1000 + x) * 0.1f, (t.Tile.Y * 1000 + z) * 0.1f, rr, gg, bb);
-            }
-        for (int j = 0; j < n - 1; j++)
-            for (int i = 0; i < n - 1; i++)
-            {
-                int a = j * n + i, b = a + 1, c = a + n, dd = c + 1;
-                m.AddTriangle(0, a, c, b); m.AddTriangle(0, b, c, dd);
-            }
-        return m;
-    }
+    static MeshData TerrainMesh(TileContent t, int stride) => t.Terrain == null ? new MeshData(1) : TerrainMesher.Build(t.Terrain, t.LandUse, stride);
 
     // ------------------------------------------------------------------ car
     static void CarScene(SoftRenderer r, Mats m, string scene)

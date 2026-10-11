@@ -448,3 +448,48 @@ namespace SwissPoliceSim.Tests
         }
     }
 }
+
+namespace SwissPoliceSim.Tests
+{
+    using SwissPoliceSim.Core.Roads;
+    using SwissPoliceSim.Core.Features;
+    public class MapPoiNavigationTests
+    {
+        static LooseTileSource Src() { var d = TestPaths.Find("Assets", "StreamingAssets", "SwissWorld", "tiles"); if (d == null) NUnit.Framework.Assert.Ignore("pilot not baked"); return new LooseTileSource(d); }
+
+        [NUnit.Framework.Test]
+        public void PoiIndex_FindsRealPoliceStations_AndRoundTrips()
+        {
+            var idx = PoiIndex.Build(Src()); var bp = SwissCoordinateConverter.ToLv95(46.94658, 7.4441);
+            var police = idx.Nearest(bp.E, bp.N, PoiKind.Police); NUnit.Framework.Assert.IsNotNull(police); TestContext.WriteLine("nearest police: " + police.Name);
+            NUnit.Framework.Assert.Greater(new List<PoiFeature>(idx.Within(bp.E, bp.N, 4000, PoiKind.Fuel)).Count, 3);
+            NUnit.Framework.Assert.IsTrue(idx.Search("Zytglogge").Count > 0);
+            string p = System.IO.Path.GetTempFileName(); idx.Save(p); var back = PoiIndex.Load(p); NUnit.Framework.Assert.AreEqual(idx.All.Count, back.All.Count); System.IO.File.Delete(p);
+        }
+
+        [NUnit.Framework.Test]
+        public void MapRasterizer_DrawsRoadsBuildingsAndWater()
+        {
+            var src = Src(); var bp = SwissCoordinateConverter.ToLv95(46.94658, 7.4441); var t = TileGrid.FromLv95(bp.E, bp.N); src.TryRead(t, out var bytes);
+            var tc = TileMeshBuilder.Build(bytes, false); var px = MapRasterizer.RenderTile(tc, 256);
+            NUnit.Framework.Assert.AreEqual(256 * 256 * 4, px.Length);
+            var distinct = new HashSet<int>(); for (int i = 0; i < px.Length; i += 4) distinct.Add(px[i] << 16 | px[i + 1] << 8 | px[i + 2]);
+            NUnit.Framework.Assert.Greater(distinct.Count, 25, "map must contain land, roads, buildings…");
+            for (int i = 3; i < px.Length; i += 4) NUnit.Framework.Assert.AreEqual(255, px[i]);
+        }
+
+        [NUnit.Framework.Test]
+        public void NavigationGuide_ProducesTurnsWithStreetNames()
+        {
+            var src = Src(); var router = new HierarchicalRouter(src);
+            var a = SwissCoordinateConverter.ToLv95(46.94658, 7.4441); var b = SwissCoordinateConverter.ToLv95(46.9633, 7.4649);
+            var route = router.Route(a.E, a.N, b.E, b.N); NUnit.Framework.Assert.IsNotNull(route);
+            var guide = NavigationGuide.Build(route);
+            foreach (var g in guide) TestContext.WriteLine($"{g.DistanceFromStart,6:F0} m  {g.Text}");
+            NUnit.Framework.Assert.GreaterOrEqual(guide.Count, 4); NUnit.Framework.Assert.AreEqual(TurnKind.Arrive, guide[guide.Count - 1].Kind);
+            NUnit.Framework.Assert.IsTrue(guide.Exists(g => g.Street.Length > 3), "street names come from OSM");
+            var nx = NavigationGuide.Next(guide, 0, out double dist); NUnit.Framework.Assert.Greater(dist, 0);
+            NUnit.Framework.Assert.AreEqual("50 m", NavigationGuide.DistanceText(52)); NUnit.Framework.Assert.AreEqual("1.2 km", NavigationGuide.DistanceText(1234));
+        }
+    }
+}

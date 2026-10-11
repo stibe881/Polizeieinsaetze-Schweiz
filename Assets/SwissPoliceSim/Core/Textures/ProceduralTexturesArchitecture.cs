@@ -187,5 +187,13 @@ namespace SwissPoliceSim.Core.Textures
             { a.Get(x, y, out float r, out float g, out float bl, out float al); at.Set(x, y, r, g, bl, al); b.Get(x, y, out r, out g, out bl, out al); at.Set(n + x, y, r, g, bl, al); }
             return at;
         }
+
+        /// <summary>Reflective "POLIZEI" patch for the back of uniforms: white letters on dark blue.</summary>
+        public static Image UniformPatch(int w = 256, int h = 64)
+        {
+            var im = new Image(w, h); im.FillRect(0, 0, w, h, 0.10f, 0.14f, 0.26f, 1f);
+            DrawText(im, "POLIZEI", 6, 8, w - 12, h - 16, 0.96f, 0.96f, 0.98f, false);
+            return im;
+        }
     }
 }
