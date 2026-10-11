@@ -67,6 +67,7 @@ namespace SwissServer
         static int Scan(WorldStore w)
         {
             int bad = 0;
+            foreach (var id0 in w.Source.Tiles) if (id0.X == 2600 && id0.Y == 1199) foreach (int q in new[] { 1, 2 }) { var sw = System.Diagnostics.Stopwatch.StartNew(); var pl = TileWire.Build(w, id0, q, 2600088, 1199760); Console.WriteLine($"timing tile 2600/1199 q{q}: {sw.ElapsedMilliseconds} ms, {(pl?.Length ?? 0) / 1024} kB"); }
             foreach (var id in w.Source.Tiles)
             {
                 if (!w.Source.TryRead(id, out var bytes)) continue;

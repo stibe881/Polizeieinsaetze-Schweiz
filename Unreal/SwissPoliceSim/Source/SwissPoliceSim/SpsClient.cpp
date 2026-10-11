@@ -197,7 +197,13 @@ void ASpsClient::HandleBinary(const TArray<uint8>& Data)
 	if (Data.Num() < 2) return;
 	switch (Data[0])
 	{
-	case SpsMsg::Tile: { FSpsTileData T; if (SpsProtocol::ParseTile(Data, T)) TileQueue.Add(MoveTemp(T)); break; }
+	case SpsMsg::Tile:
+	{
+		FSpsTileData T;
+		if (SpsProtocol::ParseTile(Data, T)) { UE_LOG(LogTemp, Warning, TEXT("[SPS] Tile-Daten %d/%d empfangen (%.1f MB, Qualitaet %d)"), T.X, T.Y, Data.Num() / 1048576.0, static_cast<int32>(T.Quality)); TileQueue.Add(MoveTemp(T)); }
+		else UE_LOG(LogTemp, Warning, TEXT("[SPS] Tile-Daten (%.1f MB) konnten nicht gelesen werden - verworfen"), Data.Num() / 1048576.0);
+		break;
+	}
 	case SpsMsg::Snapshot: { if (SpsProtocol::ParseSnapshot(Data, LastSnapshot)) bHaveSnapshot = true; break; }
 	case SpsMsg::TileDrop: { int32 X, Y; if (SpsProtocol::ParseTileDrop(Data, X, Y)) { if (X == INT32_MIN) DropAllTiles(); else DropTile(X, Y); } break; }
 	case SpsMsg::Model: { TSharedPtr<FSpsModelData> M = MakeShared<FSpsModelData>(); if (SpsProtocol::ParseModel(Data, *M)) Models.Add(M->Key, M); break; }
