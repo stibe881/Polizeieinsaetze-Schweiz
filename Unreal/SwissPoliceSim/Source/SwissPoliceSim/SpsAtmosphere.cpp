@@ -17,11 +17,15 @@ ASpsAtmosphere::ASpsAtmosphere()
 	Sun->SetupAttachment(Root); Sun->SetMobility(EComponentMobility::Movable); Sun->SetAtmosphereSunLight(true); Sun->SetAtmosphereSunLightIndex(0);
 	Sun->SetIntensity(10.f); Sun->SetLightSourceAngle(0.5f); Sun->SetCastShadows(true);
 
+	Fill = CreateDefaultSubobject<UDirectionalLightComponent>(TEXT("Fill"));
+	Fill->SetupAttachment(Root); Fill->SetMobility(EComponentMobility::Movable); Fill->SetIntensity(2.5f); Fill->SetCastShadows(false); Fill->SetLightColor(FLinearColor(0.75f, 0.82f, 1.f));
+	Fill->SetWorldRotation(FRotator(-60.f, 35.f, 0.f));
+
 	Sky = CreateDefaultSubobject<USkyAtmosphereComponent>(TEXT("SkyAtmosphere"));
 	Sky->SetupAttachment(Root);
 
 	SkyLight = CreateDefaultSubobject<USkyLightComponent>(TEXT("SkyLight"));
-	SkyLight->SetupAttachment(Root); SkyLight->SetMobility(EComponentMobility::Movable); SkyLight->bRealTimeCapture = true; SkyLight->SetIntensity(1.f);
+	SkyLight->SetupAttachment(Root); SkyLight->SetMobility(EComponentMobility::Movable); SkyLight->bRealTimeCapture = true; SkyLight->SetIntensity(1.f); SkyLight->bLowerHemisphereIsBlack = false; SkyLight->SetLowerHemisphereColor(FLinearColor(0.25f, 0.25f, 0.25f));
 
 	Fog = CreateDefaultSubobject<UExponentialHeightFogComponent>(TEXT("Fog"));
 	Fog->SetupAttachment(Root); Fog->SetFogDensity(0.01f); Fog->SetVolumetricFog(true);
@@ -56,4 +60,7 @@ void ASpsAtmosphere::Apply(float ElevationDeg, float AzimuthDeg, float Daylight,
 	// the real-time sky-light capture follows the sun slowly
 	LastCapture += 1.f; if (LastCapture > 8.f) { SkyLight->RecaptureSky(); LastCapture = 0.f; }
 	Post->Settings.AutoExposureBias = FMath::Lerp(1.5f, 0.f, Daylight);
+	// Diagnose: alle 15 s die Licht-Werte ins Log (hilft bei "alles schwarz")
+	LastLog += 1.f;
+	if (LastLog > 1.f) { static double NextLog = 0.0; const double Now = FPlatformTime::Seconds(); if (Now > NextLog) { NextLog = Now + 15.0; UE_LOG(LogTemp, Warning, TEXT("[SPS] Licht: Sonne Elevation %.1f Azimut %.1f, Tageslicht %.2f, Sonnenstaerke %.2f, Himmelslicht %.2f, Bewoelkung %.2f"), ElevationDeg, AzimuthDeg, Daylight, Sun->Intensity, SkyLight->Intensity, Cloud); } }
 }

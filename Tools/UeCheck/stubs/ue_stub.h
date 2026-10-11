@@ -217,9 +217,9 @@ struct USpringArmComponent : USceneComponent
 	static FName SocketName; float TargetArmLength = 0, CameraLagSpeed = 0, ProbeSize = 0; bool bUsePawnControlRotation = false, bDoCollisionTest = false, bInheritPitch = true, bInheritRoll = true, bInheritYaw = true, bEnableCameraLag = false;
 };
 inline FName USpringArmComponent::SocketName;
-struct UDirectionalLightComponent : USceneComponent { void SetAtmosphereSunLight(bool) {} void SetAtmosphereSunLightIndex(int32) {} void SetIntensity(float) {} void SetLightSourceAngle(float) {} void SetCastShadows(bool) {} };
+struct UDirectionalLightComponent : USceneComponent { float Intensity = 0.f; void SetLightColor(FLinearColor, bool = true) {} void SetAtmosphereSunLight(bool) {} void SetAtmosphereSunLightIndex(int32) {} void SetIntensity(float) {} void SetLightSourceAngle(float) {} void SetCastShadows(bool) {} };
 struct USkyAtmosphereComponent : USceneComponent {};
-struct USkyLightComponent : USceneComponent { bool bRealTimeCapture = false; void SetIntensity(float) {} void RecaptureSky() {} };
+struct USkyLightComponent : USceneComponent { float Intensity = 0.f; bool bLowerHemisphereIsBlack = true; void SetLowerHemisphereColor(const FLinearColor&) {} bool bRealTimeCapture = false; void SetIntensity(float) {} void RecaptureSky() {} };
 struct UExponentialHeightFogComponent : USceneComponent { void SetFogDensity(float) {} void SetVolumetricFog(bool) {} void SetFogInscatteringColor(FLinearColor) {} };
 struct UVolumetricCloudComponent : USceneComponent { void SetMaterial(UMaterialInterface*) {} void SetLayerBottomAltitude(float) {} };
 enum EAutoExposureMethod { AEM_Histogram };
@@ -270,7 +270,7 @@ struct APlayerController : AController
 };
 struct AGameModeBase : AActor { UClass_Stub* DefaultPawnClass = nullptr; UClass_Stub* PlayerControllerClass = nullptr; UClass_Stub* HUDClass = nullptr; };
 struct UGameViewportClient { template <class W> void AddViewportWidgetContent(W, int) {} template <class W> void RemoveViewportWidgetContent(W) {} };
-struct UEngine { UGameViewportClient* GameViewport = nullptr; }; extern UEngine* GEngine;
+struct UEngine { UGameViewportClient* GameViewport = nullptr; bool Exec(UWorld*, const TCHAR*) { return true; } }; extern UEngine* GEngine;
 struct UWorld : UObject
 {
 	template <class T> T* SpawnActor(const FVector&, const FRotator&) { return new T(); } APlayerController* GetFirstPlayerController() const { return nullptr; } double GetTimeSeconds() const { return 0; }

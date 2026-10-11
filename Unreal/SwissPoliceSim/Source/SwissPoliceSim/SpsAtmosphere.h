@@ -25,10 +25,11 @@ public:
 
 private:
 	UPROPERTY() TObjectPtr<UDirectionalLightComponent> Sun;
+	UPROPERTY() TObjectPtr<UDirectionalLightComponent> Fill;   // schwache Aufhellung ohne Schatten (Fassaden/Fahrzeuge bleiben nie pechschwarz)
 	UPROPERTY() TObjectPtr<USkyAtmosphereComponent> Sky;
 	UPROPERTY() TObjectPtr<USkyLightComponent> SkyLight;
 	UPROPERTY() TObjectPtr<UExponentialHeightFogComponent> Fog;
 	UPROPERTY() TObjectPtr<UVolumetricCloudComponent> Clouds;
 	UPROPERTY() TObjectPtr<UPostProcessComponent> Post;
-	float LastCapture = 0.f;
+	float LastCapture = 0.f; float LastLog = 0.f;
 };

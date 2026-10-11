@@ -67,6 +67,14 @@ void ASpsClient::BeginPlay()
 		for (AActor* A : Doomed) A->Destroy();
 		if (Doomed.Num() > 0) UE_LOG(LogTemp, Warning, TEXT("[SPS] %d Template-Objekte aus dem Level entfernt"), Doomed.Num());
 	}
+	// Lumen kennt Procedural-Mesh-Gelaende/-Gebaeude nicht (keine Mesh-Cards/Distanzfelder): ohne diese Umstellung bleiben Fassaden ohne Streu-Licht schwarz.
+	// Stattdessen: Himmelslicht + Sonne + SSR/Ambient Occlusion. Laeuft zur Laufzeit, die Projekt-INI bleibt unberuehrt.
+	if (GEngine)
+	{
+		GEngine->Exec(GetWorld(), TEXT("r.DynamicGlobalIlluminationMethod 0"));
+		GEngine->Exec(GetWorld(), TEXT("r.ReflectionMethod 2"));
+		GEngine->Exec(GetWorld(), TEXT("r.AmbientOcclusionStaticFraction 1"));
+	}
 	Atmosphere = GetWorld()->SpawnActor<ASpsAtmosphere>(FVector::ZeroVector, FRotator::ZeroRotator);
 	Weather = GetWorld()->SpawnActor<ASpsWeather>(FVector::ZeroVector, FRotator::ZeroRotator);
 	// a flying "hover" pawn gives a sky view behind the menu until the game starts
