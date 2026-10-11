@@ -78,7 +78,7 @@ void ASpsController::SetupInputComponent()
 	InputComponent->BindKey(EKeys::F5, IE_Pressed, this, &ASpsController::OnQuickSave);
 	InputComponent->BindKey(EKeys::F9, IE_Pressed, this, &ASpsController::OnQuickLoad);
 	InputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &ASpsController::OnPause);
-	InputComponent->BindKey(EKeys::F2, IE_Pressed, this, &ASpsController::OnToggleUi);
+	InputComponent->BindKey(EKeys::Insert, IE_Pressed, this, &ASpsController::OnToggleUi);
 	InputComponent->BindKey(EKeys::Tab, IE_Pressed, this, &ASpsController::OnComputer);
 	InputComponent->BindKey(EKeys::M, IE_Pressed, this, &ASpsController::OnMap);
 	InputComponent->BindKey(EKeys::P, IE_Pressed, this, &ASpsController::OnReport);
@@ -171,7 +171,7 @@ void ASpsController::OnAccept() { if (ASpsClient* C = Client()) { if (!bUiFocus)
 void ASpsController::OnDecline() { if (ASpsClient* C = Client()) { if (!bUiFocus) C->SendText(TEXT("{\"t\":\"decline\"}")); } }
 void ASpsController::OnQuickSave() { if (ASpsClient* C = Client()) C->SendText(TEXT("{\"t\":\"save\",\"slot\":1}")); }
 void ASpsController::OnQuickLoad() { if (ASpsClient* C = Client()) C->SendText(TEXT("{\"t\":\"load\",\"slot\":1}")); }
-// F2 blendet das Web-Overlay aus/ein (Diagnose: zeigt, was die 3D-Welt darunter darstellt)
+// Einfg (Insert) blendet das Web-Overlay aus/ein (Diagnose: zeigt, was die 3D-Welt darunter darstellt)
 void ASpsController::OnToggleUi()
 {
 	if (!BrowserHolder.IsValid()) return;

@@ -46,7 +46,7 @@ namespace SwissPoliceSim.Core.Meshing
             if (c.TryGet("POI", out var poi)) t.Pois = TileCodec.ReadPois(poi, c.Tile);
             if (c.TryGet("RAIL", out var rail)) t.Rails = TileCodec.ReadRails(rail, c.Tile);
             if (c.TryGet("BLDG", out var bl)) t.Buildings = TileCodec.ReadBuildings(bl, c.Tile);
-            if (c.TryGet("WMSH", out var wm)) t.WaterMesh = MeshDataIO.Read(wm);
+            if (c.TryGet("WMSH", out var wm)) { t.WaterMesh = MeshDataIO.Read(wm); if (t.WaterMesh != null) MeshUtil.SanitizePositions(t.WaterMesh); }   // aeltere gebackene Tiles enthalten NaN-Hoehen in Gewaesserbaendern
             if (!meshes) return t;
 
             Func<double, double, float> ground = (x, z) => t.Terrain != null ? t.Terrain.SampleLocal(x, z) : 0f;

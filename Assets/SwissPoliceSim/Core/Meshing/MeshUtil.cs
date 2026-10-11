@@ -6,6 +6,24 @@ namespace SwissPoliceSim.Core.Meshing
     /// <summary>Small geometry toolkit used by the procedural generators (cylinders, boxes, cones, spheres, lathe surfaces).</summary>
     public static class MeshUtil
     {
+        /// <summary>Ersetzt nicht-endliche oder absurde Positionswerte durch den Wert des naechsten gueltigen Nachbarvertex (zuerst rueckwaerts, dann vorwaerts). Gibt die Anzahl korrigierter Werte zurueck. Ein einziges NaN kann sonst die Grafik-Engine zum Absturz bringen.</summary>
+        public static int SanitizePositions(MeshData m)
+        {
+            var p = m.Positions; int fixedCount = 0, n = p.Count;
+            for (int axis = 0; axis < 3; axis++)
+            {
+                for (int i = axis; i < n; i += 3)
+                {
+                    float v = p[i]; if (float.IsFinite(v) && Math.Abs(v) <= 1e5f) continue;
+                    float rep = float.NaN;
+                    for (int j = i - 3; j >= axis && float.IsNaN(rep); j -= 3) if (float.IsFinite(p[j]) && Math.Abs(p[j]) <= 1e5f) rep = p[j];
+                    for (int j = i + 3; j < n && float.IsNaN(rep); j += 3) if (float.IsFinite(p[j]) && Math.Abs(p[j]) <= 1e5f) rep = p[j];
+                    p[i] = float.IsNaN(rep) ? 0f : rep; fixedCount++;
+                }
+            }
+            return fixedCount;
+        }
+
         public static void Box(MeshData m, int sub, float cx, float cy, float cz, float sx, float sy, float sz, byte r, byte g, byte b, float yaw = 0)
         {
             float hx = sx / 2, hy = sy / 2, hz = sz / 2;

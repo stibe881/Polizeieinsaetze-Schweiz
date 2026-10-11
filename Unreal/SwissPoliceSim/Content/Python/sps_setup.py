@@ -109,10 +109,31 @@ def vector_param(mat, name, color, x, y):
     return node(mat, unreal.MaterialExpressionVectorParameter, x, y, parameter_name=name, default_value=color)
 
 
+_DEFAULT_TEX = {}
+
+
+def default_tex(suffix):
+    """A real imported texture of the matching kind. Without it the parameter keeps the engine's colour default texture and the master
+    fails to compile ("Sampler type is Normal, should be Color for DefaultTexture")."""
+    if suffix not in _DEFAULT_TEX:
+        found = None
+        for path in unreal.EditorAssetLibrary.list_assets(TEX_PATH, recursive=False, include_folder=False):
+            if path.split(".")[0].endswith("_" + suffix):
+                found = unreal.EditorAssetLibrary.load_asset(path)
+                break
+        _DEFAULT_TEX[suffix] = found
+    return _DEFAULT_TEX[suffix]
+
+
 def tex_param(mat, name, x, y, sampler=None):
     e = node(mat, unreal.MaterialExpressionTextureSampleParameter2D, x, y, parameter_name=name)
     if sampler is not None:
         e.set_editor_property("sampler_type", sampler)
+    dt = default_tex(name)
+    if dt is not None:
+        e.set_editor_property("texture", dt)
+    else:
+        warn("no default texture for %s - the master may not compile" % name)
     return e
 
 
@@ -228,8 +249,8 @@ def build_pbr_master():
         return div
 
     color = sample_blend("Color", -400, unreal.MaterialSamplerType.SAMPLERTYPE_COLOR)
-    rough = sample_blend("Rough", 100, unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_COLOR)
-    ao = sample_blend("AO", 600, unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_COLOR)
+    rough = sample_blend("Rough", 100, unreal.MaterialSamplerType.SAMPLERTYPE_MASKS)
+    ao = sample_blend("AO", 600, unreal.MaterialSamplerType.SAMPLERTYPE_MASKS)
     normal = sample_blend("Normal", 1100, unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL)
 
     vc = vertex_color_linear(m, 300, -700)

@@ -117,7 +117,10 @@ namespace SwissPoliceSim.Core.Features
         {
             int n = w.E.Length; if (n < 2) return;
             var lvl = new float[n];
-            for (int i = 0; i < n; i++) { dem.TrySample(w.E[i], w.N[i], out float h); lvl[i] = h; }
+            var ok = new bool[n]; int valid = 0;
+            for (int i = 0; i < n; i++) { ok[i] = dem.TrySample(w.E[i], w.N[i], out float h) && float.IsFinite(h); lvl[i] = ok[i] ? h : 0f; if (ok[i]) valid++; }
+            if (valid == 0) return;   // kein Hoehenwert im Gebiet: Band weglassen statt NaN zu erzeugen
+            for (int i = 0; i < n; i++) if (!ok[i]) { int k = i - 1; while (k >= 0 && !ok[k]) k--; if (k < 0) { k = i + 1; while (k < n && !ok[k]) k++; } lvl[i] = lvl[k]; }
             // rivers/streams flow downhill: enforce a monotone profile (running minimum from the upstream end is unknown, so smooth)
             for (int i = 1; i < n - 1; i++) lvl[i] = (lvl[i - 1] + lvl[i] + lvl[i + 1]) / 3f;
             float half = w.Width * 0.5f;

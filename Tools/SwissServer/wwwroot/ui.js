@@ -2,7 +2,7 @@
 /* Swiss Police Simulator – web UI. Runs embedded in the Unreal client (?embedded=1, transparent) or standalone as a top-down sandbox that drives the same server. */
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search), embedded = params.has('embedded');
-if (embedded) document.body.classList.add('embedded');
+if (embedded) { document.documentElement.classList.add('embedded'); document.body.classList.add('embedded'); }
 let ws = null, S = null, W = null, started = false, curWin = null, enc = null, route = [], routeInfo = null, pois = [], measure = null, lastMeasureAt = 0;
 const send = o => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); };
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

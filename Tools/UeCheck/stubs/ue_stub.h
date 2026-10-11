@@ -234,7 +234,7 @@ struct UInputComponent : UObject
 {
 	template <class U, class F> void BindAxisKey(FKey, U*, F) {} template <class U, class F> void BindKey(FKey, int, U*, F) {}
 };
-namespace EKeys { extern FKey W, A, S, D, F, E, R, G, C, V, M, P, N, K, B, Q, L, H, F1, F2, F5, F9, Tab, Enter, BackSpace, Escape, LeftShift, SpaceBar, MouseX, MouseY, LeftMouseButton; }
+namespace EKeys { extern FKey W, A, S, D, F, E, R, G, C, V, M, P, N, K, B, Q, L, H, F1, F2, Insert, F5, F9, Tab, Enter, BackSpace, Escape, LeftShift, SpaceBar, MouseX, MouseY, LeftMouseButton; }
 enum { IE_Pressed, IE_Released };
 enum class EAutoReceiveInput { Disabled };
 

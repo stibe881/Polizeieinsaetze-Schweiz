@@ -25,6 +25,7 @@ namespace SwissServer
             string world = Arg(args, "--world") ?? FindUp("Assets/StreamingAssets/SwissWorld"), law = Arg(args, "--law") ?? FindUp("Assets/StreamingAssets/Law"); int port = int.Parse(Arg(args, "--port") ?? "47800");
             if (world == null || !Directory.Exists(world)) { Console.Error.WriteLine("World data not found. Use --world <dir> (the folder with manifest.json and tiles/)."); return 2; }
             Console.WriteLine($"Loading world from {world} …"); var store = WorldStore.Load(world); Console.WriteLine($"{store.TileCount} tiles, {store.Macro.Count} macro blocks, {store.Pois?.All.Count ?? 0} POIs.");
+            if (args.Contains("--scan")) return Scan(store);
             var hub = new Hub(store, law);
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, WebRootPath = FindUp("Tools/SwissServer/wwwroot") ?? Path.Combine(AppContext.BaseDirectory, "wwwroot") });
             builder.Logging.SetMinimumLevel(LogLevel.Warning); builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
@@ -60,6 +61,30 @@ namespace SwissServer
             var loop = hub.RunAsync(cts.Token); Console.WriteLine($"Swiss Police Simulator server on http://127.0.0.1:{port}  (WebSocket /ws, web UI /)");
             try { await app.RunAsync(cts.Token); } catch (OperationCanceledException) { }
             return 0;
+        }
+
+        /// <summary>Diagnose: baut jedes Tile in jeder Qualitaet und zaehlt nicht-endliche Vertexwerte je Mesh-Art.</summary>
+        static int Scan(WorldStore w)
+        {
+            int bad = 0;
+            foreach (var id in w.Source.Tiles)
+            {
+                if (!w.Source.TryRead(id, out var bytes)) continue;
+                foreach (int q in new[] { 1, 2, 3 })
+                {
+                    var c = TileMeshBuilder.Build(bytes, true, q == 1, double.NaN, double.NaN, q == 1 ? TileWire.DetailRadius : 0);
+                    int stride = q == 1 ? 1 : q == 2 ? 2 : 4; MeshData terrain = null;
+                    if (c.Terrain != null) { int ms = (c.Terrain.Resolution - 1) / 32; stride = Math.Min(stride, Math.Max(1, ms)); terrain = TerrainMesher.Build(c.Terrain, c.LandUse, stride); }
+                    var meshes = new (string, MeshData)[] { ("Terrain", terrain), ("Roads", c.RoadMesh), ("BuildingsFar", c.BuildingMesh), ("BuildingsOutside", c.BuildingMeshOutside), ("BuildingsDetail", c.BuildingMeshDetail), ("Water", c.WaterMesh), ("Furniture", c.FurnitureMesh), ("Rail", c.RailMesh) };
+                    foreach (var (name, m) in meshes)
+                    {
+                        if (m == null) continue; int n = 0; foreach (var f in m.Positions) if (!float.IsFinite(f) || Math.Abs(f) > 1e5f) n++;
+                        int nn = 0; foreach (var f in m.Normals) if (!float.IsFinite(f)) nn++;
+                        if (n > 0 || nn > 0) { bad++; Console.WriteLine($"tile {id.X}/{id.Y} q{q} {name}: {n} bad positions, {nn} bad normals of {m.VertexCount} vertices"); }
+                    }
+                }
+            }
+            Console.WriteLine(bad == 0 ? "scan: no bad vertices" : $"scan: {bad} bad meshes"); return bad == 0 ? 0 : 1;
         }
 
         static string Arg(string[] a, string k) { for (int i = 0; i + 1 < a.Length; i++) if (a[i] == k) return a[i + 1]; return null; }
