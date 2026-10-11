@@ -193,9 +193,13 @@ struct UProceduralMeshComponent : USceneComponent
 	void SetCastShadow(bool) {} void SetCollisionEnabled(ECollisionEnabled) {} void SetCollisionProfileName(FName) {} void SetCanEverAffectNavigation(bool) {}
 };
 struct UStaticMesh : UObject {}; struct USkeletalMesh : UObject {}; struct UAnimationAsset : UObject {};
-enum class EAnimationMode { AnimationSingleNode };
+enum class EAnimationMode { AnimationSingleNode, AnimationBlueprint };
+struct UClass {}; struct UAnimInstance : UObject { UClass* GetClass() const { return nullptr; } };
+struct FFloatProperty { void SetPropertyValue_InContainer(void*, float) {} }; struct FBoolProperty { void SetPropertyValue_InContainer(void*, bool) {} };
+template <class T> T* FindFProperty(UClass*, const TCHAR*) { return nullptr; }
+template <class T> UClass* LoadClass(UObject*, const TCHAR*) { return nullptr; }
 struct UStaticMeshComponent : USceneComponent { void SetStaticMesh(UStaticMesh*) {} void SetCollisionEnabled(ECollisionEnabled) {} void SetCastShadow(bool) {} void SetRelativeScale3D(const FVector&) {} };
-struct USkeletalMeshComponent : USceneComponent { void SetSkeletalMesh(USkeletalMesh*) {} void SetAnimationMode(EAnimationMode) {} void PlayAnimation(UAnimationAsset*, bool) {} void SetPlayRate(float) {} void SetCollisionEnabled(ECollisionEnabled) {} void SetRelativeScale3D(const FVector&) {} };
+struct USkeletalMeshComponent : USceneComponent { UAnimInstance* GetAnimInstance() const { return nullptr; } void SetAnimInstanceClass(UClass*) {} void SetSkeletalMesh(USkeletalMesh*) {} void SetAnimationMode(EAnimationMode) {} void PlayAnimation(UAnimationAsset*, bool) {} void SetPlayRate(float) {} void SetCollisionEnabled(ECollisionEnabled) {} void SetRelativeScale3D(const FVector&) {} };
 enum class ETeleportType { None, TeleportPhysics };
 struct FTransform { FTransform() {} FTransform(const FRotator&, const FVector&, const FVector& = FVector()) {} };
 struct UInstancedStaticMeshComponent : USceneComponent { void SetStaticMesh(UStaticMesh*) {} void SetCastShadow(bool) {} void SetCollisionEnabled(ECollisionEnabled) {} int32 AddInstance(const FTransform&) { return 0; } int32 GetInstanceCount() const { return 0; } bool BatchUpdateInstancesTransforms(int32, const TArray<FTransform>&, bool, bool, bool) { return true; } void SetMaterial(int32, UMaterialInterface*) {} };

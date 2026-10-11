@@ -30,7 +30,7 @@ void SpsOverrides::Load()
 	{
 		TArray<FString> P; L.ParseIntoArray(P, TEXT("|"), false);
 		if (P.Num() < 2) continue;
-		FSpsHumanOverride O; O.Prefix = P[0]; O.Mesh = P[1]; O.Walk = P.IsValidIndex(2) ? P[2] : FString(); O.Idle = P.IsValidIndex(3) ? P[3] : FString(); O.Scale = F(P, 4, 1.f); O.OffsetX = F(P, 5, 0.f); O.OffsetZ = F(P, 6, 0.f); O.Yaw = F(P, 7, 0.f);
+		FSpsHumanOverride O; O.Prefix = P[0]; O.Mesh = P[1]; O.Walk = P.IsValidIndex(2) ? P[2] : FString(); O.Idle = P.IsValidIndex(3) ? P[3] : FString(); O.Scale = F(P, 4, 1.f); O.OffsetX = F(P, 5, 0.f); O.OffsetZ = F(P, 6, 0.f); O.Yaw = F(P, 7, 0.f); O.AnimBP = P.IsValidIndex(8) ? P[8] : FString();
 		GHumans.Add(O);
 	}
 }

@@ -15,10 +15,11 @@ class AActor;
  *
  * Car:   <key prefix>|<static mesh>|<scale>|<offset X>|<offset Y>|<offset Z>|<yaw>      (origin of the mesh = middle of the car on the ground, +X forward, cm)
  * Human: <key prefix>|<skeletal mesh>|<walk animation>|<idle animation>|<scale>|<offset X>|<offset Z>|<yaw>
+ * Optional 9th field: an Animation Blueprint class path (e.g. /Game/Characters/ABP_Person.ABP_Person_C). It replaces the two animations; the client sets the float variable "Speed" (m/s) and the bool "IsMoving" on it every frame.
  * The longest matching key prefix wins ("car:police" beats "car"). Without a match the procedural model is used.
  */
 struct FSpsCarOverride { FString Prefix, Mesh; float Scale = 1.f; FVector Offset = FVector::ZeroVector; float Yaw = 0.f; };
-struct FSpsHumanOverride { FString Prefix, Mesh, Walk, Idle; float Scale = 1.f; float OffsetX = 0.f, OffsetZ = 0.f; float Yaw = 0.f; };
+struct FSpsHumanOverride { FString Prefix, Mesh, Walk, Idle, AnimBP; float Scale = 1.f; float OffsetX = 0.f, OffsetZ = 0.f; float Yaw = 0.f; };
 
 namespace SpsOverrides
 {

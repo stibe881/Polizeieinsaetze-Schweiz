@@ -8,6 +8,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimationAsset.h"
+#include "Animation/AnimInstance.h"
 #include "Engine/SkeletalMesh.h"
 
 bool FSpsHumanBody::Build(AActor* Owner, USceneComponent* Root, const FSpsModelData& Model)
@@ -51,12 +52,24 @@ bool FSpsHumanBody::ApplyOverride(AActor* Owner, USceneComponent* Root, const FS
 	Skel->SetupAttachment(Root); Skel->SetSkeletalMesh(Mesh); Skel->SetRelativeLocation(FVector(O->OffsetX, 0.f, O->OffsetZ)); Skel->SetRelativeRotation(FRotator(0.f, O->Yaw, 0.f)); Skel->SetRelativeScale3D(FVector(O->Scale, O->Scale, O->Scale));
 	Skel->SetCollisionEnabled(ECollisionEnabled::NoCollision); Skel->RegisterComponent();
 	WalkAnim = O->Walk.IsEmpty() ? nullptr : LoadObject<UAnimationAsset>(nullptr, *O->Walk); IdleAnim = O->Idle.IsEmpty() ? nullptr : LoadObject<UAnimationAsset>(nullptr, *O->Idle);
+	if (!O->AnimBP.IsEmpty())
+	{
+		if (UClass* C = LoadClass<UAnimInstance>(nullptr, *O->AnimBP)) { Skel->SetAnimationMode(EAnimationMode::AnimationBlueprint); Skel->SetAnimInstanceClass(C); AnimInst = Skel->GetAnimInstance(); }
+	}
 	for (TPair<FString, USceneComponent*>& P : Parts) { if (P.Value) P.Value->SetVisibility(false, true); }
 	return true;
 }
 
 void FSpsHumanBody::Animate(float Dt)
 {
+	if (Skel && Skel->GetAnimInstance())
+	{
+		// animation blueprint: feed it the movement variables by name (any that the blueprint does not declare are skipped)
+		UAnimInstance* AI = Skel->GetAnimInstance();
+		if (FFloatProperty* FP = FindFProperty<FFloatProperty>(AI->GetClass(), TEXT("Speed"))) FP->SetPropertyValue_InContainer(AI, Speed);
+		if (FBoolProperty* BP = FindFProperty<FBoolProperty>(AI->GetClass(), TEXT("IsMoving"))) BP->SetPropertyValue_InContainer(AI, Speed > 0.2f);
+		return;
+	}
 	if (Skel)
 	{
 		const int32 Want = (Pose == SpsPose::Walk || Pose == SpsPose::Run || Speed > 0.2f) ? 1 : 0;

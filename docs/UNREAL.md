@@ -30,7 +30,7 @@ Der Client zeigt standardmässig die **prozeduralen Meshes** des Servers. Für S
   +Car=car|/Game/Vehicles/SM_Sedan.SM_Sedan|1.0|0|0|0|0
   +Human=human|/Game/Characters/SK_Person.SK_Person|/Game/Characters/A_Walk.A_Walk|/Game/Characters/A_Idle.A_Idle|1.0|0|-90|0
   ```
-  Auto: `Schlüssel-Präfix | Static Mesh | Skalierung | Offset X | Y | Z | Gier` (Mesh-Ursprung = Wagenmitte am Boden, +X vorne, cm). Mensch: `Präfix | Skeletal Mesh | Geh-Animation | Idle-Animation | Skalierung | Offset X | Offset Z | Gier`. Der längste passende Präfix gewinnt (`car:police` vor `car`; Schlüssel siehe `PROTOCOL.md`). City Sample (Autos, Fussgänger) und MetaHuman (Figuren) lassen sich so einhängen.
+  Auto: `Schlüssel-Präfix | Static Mesh | Skalierung | Offset X | Y | Z | Gier` (Mesh-Ursprung = Wagenmitte am Boden, +X vorne, cm). Mensch: `Präfix | Skeletal Mesh | Geh-Animation | Idle-Animation | Skalierung | Offset X | Offset Z | Gier | [Animation-Blueprint-Klasse]`. Mit Animation Blueprint (z. B. `/Game/Characters/ABP_Person.ABP_Person_C`) setzt der Client jede Frame die Variablen `Speed` (float, m/s) und `IsMoving` (bool); fehlende Variablen werden übersprungen. Der längste passende Präfix gewinnt (`car:police` vor `car`; Schlüssel siehe `PROTOCOL.md`). City Sample (Autos, Fussgänger) und MetaHuman (Figuren) lassen sich so einhängen.
 * Nanite/Lumen greifen für diese Assets; die prozeduralen Meshes selbst sind weder Nanite noch LOD-optimiert.
 
 ## Weitere Funktionen des Clients
@@ -43,4 +43,4 @@ Der Client zeigt standardmässig die **prozeduralen Meshes** des Servers. Für S
 ## Stand / Ehrlichkeit
 * **Kein Unreal war verfügbar.** Der C++-Code wurde nur gegen eine selbst geschriebene Stub-API geprüft (`Tools/UeCheck/check.sh`: Syntax/Typen). **Er ist nie gegen die echte Engine kompiliert oder gestartet worden**; mit API-Abweichungen (UE 5.4 angenommen) ist zu rechnen. `sps_setup.py` ist ebenfalls ungetestet.
 * **Server und Web-UI sind getestet** (`Tools/SwissClientTest`: End-to-End-Skript, alle Prüfungen grün; Web-UI per Headless-Browser).
-* Bekannte Lücken: Regen/Schnee sind einfache Instanzen (kein Niagara), Nummernschilder sind Textkomponenten, kein Spiegelbild, der Austausch von Menschen setzt Animationsassets voraus (kein Anim-Blueprint-Anschluss), Spielerauto ohne Fahrwerk-Physik (Arcade-Modell).
+* Bekannte Lücken: Regen/Schnee sind einfache Instanzen (kein Niagara), Nummernschilder sind Textkomponenten, kein Spiegelbild, Spielerauto ohne Fahrwerk-Physik (Arcade-Modell).

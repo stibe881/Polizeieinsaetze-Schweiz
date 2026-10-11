@@ -18,7 +18,7 @@ struct FSpsHumanBody
 	uint8 Pose = SpsPose::Idle;
 	float Speed = 0.f;
 	float Height = 175.f;
-	class USkeletalMeshComponent* Skel = nullptr; class UAnimationAsset* WalkAnim = nullptr; class UAnimationAsset* IdleAnim = nullptr; int32 SkelState = -1;
+	class USkeletalMeshComponent* Skel = nullptr; class UAnimationAsset* WalkAnim = nullptr; class UAnimationAsset* IdleAnim = nullptr; int32 SkelState = -1; class UAnimInstance* AnimInst = nullptr;
 
 	bool Build(AActor* Owner, USceneComponent* Root, const FSpsModelData& Model);
 	/** Replaces the procedural body by a configured skeletal mesh with walk/idle animation (SpsOverrides). */
