@@ -26,6 +26,7 @@ namespace SwissServer
             if (world == null || !Directory.Exists(world)) { Console.Error.WriteLine("World data not found. Use --world <dir> (the folder with manifest.json and tiles/)."); return 2; }
             Console.WriteLine($"Loading world from {world} …"); var store = WorldStore.Load(world); Console.WriteLine($"{store.TileCount} tiles, {store.Macro.Count} macro blocks, {store.Pois?.All.Count ?? 0} POIs.");
             if (args.Contains("--scan")) return Scan(store);
+            if (args.Contains("--startcheck")) return StartCheck(store, law);
             var hub = new Hub(store, law);
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, WebRootPath = FindUp("Tools/SwissServer/wwwroot") ?? Path.Combine(AppContext.BaseDirectory, "wwwroot") });
             builder.Logging.SetMinimumLevel(LogLevel.Warning); builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
@@ -62,6 +63,19 @@ namespace SwissServer
             var loop = hub.RunAsync(cts.Token); Console.WriteLine($"Swiss Police Simulator server on http://127.0.0.1:{port}  (WebSocket /ws, web UI /)");
             try { await app.RunAsync(cts.Token); } catch (OperationCanceledException) { }
             return 0;
+        }
+
+        /// <summary>Diagnose: neues Spiel starten, pruefen ob Spieler- und Fahrzeugposition ausserhalb aller Gebaeudegrundrisse liegen.</summary>
+        static int StartCheck(WorldStore w, string law)
+        {
+            var hub = new Hub(w, law); var g = hub.Game; if (Environment.GetEnvironmentVariable("SPS_START_E") is string se) g.NewGame("KAPO_BE", 1, double.Parse(se), double.Parse(Environment.GetEnvironmentVariable("SPS_START_N"))); else g.NewGame("KAPO_BE", 1); bool bad = false;
+            foreach (var (name, e, n) in new[] { ("Spieler", g.PE, g.PN), ("Fahrzeug", g.VE, g.VN) })
+            {
+                int inside = 0; var c = TileGrid.FromLv95(e, n);
+                for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) { var t = w.Content(new TileId(c.X + dx, c.Y + dy)); if (t?.Buildings == null) continue; foreach (var b in t.Buildings) if (b.Footprint.Outer.Count > 2 && SwissPoliceSim.Core.Geometry.PolygonUtil.PointInRing(b.Footprint.Outer, e, n)) inside++; }
+                Console.WriteLine($"{name}: E {e:F1} N {n:F1} H {(name == "Spieler" ? g.PH : g.VH):F1}, in {inside} Gebaeudegrundrissen"); if (inside > 0) bad = true;
+            }
+            Console.WriteLine($"Fahrzeug-Peilung {g.VYaw:F0} Grad"); return bad ? 1 : 0;
         }
 
         /// <summary>Diagnose: baut jedes Tile in jeder Qualitaet und zaehlt nicht-endliche Vertexwerte je Mesh-Art.</summary>

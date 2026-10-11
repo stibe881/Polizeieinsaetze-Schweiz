@@ -75,13 +75,30 @@ namespace SwissServer.Sim
             Clock = new GameClock { Start = new DateTime(2026, 10, 12, 9, 0, 0), TimeScale = 12f };
             ResetWorldState();
             double e, n; if (startE.HasValue && startN.HasValue) { e = startE.Value; n = startN.Value; } else FindStart(Corps, out e, out n);
-            PE = VE = e; PN = VN = n; PH = VH = W.Height(e, n); if (double.IsNaN(PH)) PH = VH = 540; VE = e + 6; VYaw = 0; PInVehicle = false; PFuel = 1; PDamage = 0;
+            PE = VE = e; PN = VN = n; VYaw = 0;
+            // Der Polizeiposten (POI) liegt im Gebaeudegrundriss: Auto auf die naechste befahrbare Strasse, Beamter auf den Gehsteig daneben (sonst startet man im Hof ohne Ausgang)
+            if (!(startE.HasValue && startN.HasValue)) SnapStartToRoad(e, n);
+            else VE = e + 6;
+            PH = W.Height(PE, PN); VH = W.Height(VE, VN); if (double.IsNaN(PH)) PH = 540; if (double.IsNaN(VH)) VH = PH; PInVehicle = false; PFuel = 1; PDamage = 0;
             Playing = true; Paused = false; _nextGen = Clock.ElapsedGameSeconds + 150 + _rnd.Next(150);
             Hub.Broadcast(new { t = "started", e = PE, n = PN, h = PH, vE = VE, vN = VN, vYaw = VYaw, corps = Corps.Name, seed });
             Radio($"Zentrale: {CallSign} – Dienstbeginn. Viel Erfolg.");
         }
 
         public string CallSign => Dispatch != null ? Dispatch.CallSign : "Patrouille 12";
+
+        /// <summary>Setzt Fahrzeug und Spieler in der Naehe von (e, n) auf eine befahrbare Strasse: Auto auf der Strassenachse (in Fahrtrichtung), Spieler 2.5 m seitlich Richtung Gebaeude.</summary>
+        void SnapStartToRoad(double e, double n)
+        {
+            VE = e + 6; VN = n; VYaw = 0;
+            if (!W.NearestRoad(e, n, 150, out var ri) || ri.Way == null) return;
+            var w = ri.Way; int i = Math.Max(0, Math.Min(ri.Segment, w.PointCount - 2));
+            double ax = w.E[i], ay = w.N[i], bx = w.E[i + 1], by = w.N[i + 1], dx = bx - ax, dy = by - ay, len = Math.Sqrt(dx * dx + dy * dy); if (len < 0.5) return;
+            double t = Math.Max(0, Math.Min(1, ((e - ax) * dx + (n - ay) * dy) / (len * len))), fx = ax + t * dx, fy = ay + t * dy, ux = dx / len, uy = dy / len;
+            VE = fx; VN = fy; VYaw = (float)(Math.Atan2(ux, uy) * 180.0 / Math.PI); if (VYaw < 0) VYaw += 360f;   // Peilung von Nord im Uhrzeigersinn
+            double sx = e - fx, sy = n - fy, sl = Math.Sqrt(sx * sx + sy * sy); if (sl < 0.5) { sx = -uy; sy = ux; sl = 1; }   // zur Seite des Gebaeudes (Gehsteig)
+            double off = Math.Min(2.5, sl); PE = fx + sx / sl * off - ux * 3.0; PN = fy + sy / sl * off - uy * 3.0;
+        }
 
         void FindStart(PoliceCorps corps, out double e, out double n)
         {
