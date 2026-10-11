@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using SwissPoliceSim.Core.Geometry;
+using SwissPoliceSim.Core.Roads;
 using SwissPoliceSim.Core.Features;
 using SwissPoliceSim.Core.Game;
 using SwissPoliceSim.Core.Geo;
@@ -91,7 +93,15 @@ namespace SwissServer.Sim
         void SnapStartToRoad(double e, double n)
         {
             VE = e + 6; VN = n; VYaw = 0;
-            if (!W.NearestRoad(e, n, 150, out var ri) || ri.Way == null) return;
+            // Bevorzugt eine normale Strasse (nicht Betriebs-/Waldweg, kein Tunnel/Bruecke) mit Abstand zu Gleisen; sonst die naechste befahrbare
+            bool NearRail(double pe, double pn, double r)
+            {
+                var c0 = TileGrid.FromLv95(pe, pn);
+                for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) { var t = W.Content(new TileId(c0.X + dx, c0.Y + dy)); if (t?.Rails == null) continue; foreach (var rl in t.Rails) for (int k = 0; k + 1 < rl.E.Length; k++) if (PolygonUtil.DistToSegment(new Vec2d(pe, pn), new Vec2d(rl.E[k], rl.N[k]), new Vec2d(rl.E[k + 1], rl.N[k + 1])) < r) return true; }
+                return false;
+            }
+            if (!W.NearestRoad(e, n, 300, out var ri, true, (rw, qe, qn) => rw.Class <= RoadClass.LivingStreet && !rw.Tunnel && !rw.Bridge && !NearRail(rw.E[0], rw.N[0], 18) ) || ri.Way == null)
+                if (!W.NearestRoad(e, n, 150, out ri) || ri.Way == null) return;
             var w = ri.Way; int i = Math.Max(0, Math.Min(ri.Segment, w.PointCount - 2));
             double ax = w.E[i], ay = w.N[i], bx = w.E[i + 1], by = w.N[i + 1], dx = bx - ax, dy = by - ay, len = Math.Sqrt(dx * dx + dy * dy); if (len < 0.5) return;
             double t = Math.Max(0, Math.Min(1, ((e - ax) * dx + (n - ay) * dy) / (len * len))), fx = ax + t * dx, fy = ay + t * dy, ux = dx / len, uy = dy / len;

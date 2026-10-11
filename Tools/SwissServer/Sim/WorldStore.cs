@@ -58,7 +58,7 @@ namespace SwissServer.Sim
             return c.Terrain.SampleLocal(e - TileGrid.MinE(id), n - TileGrid.MinN(id));
         }
 
-        public bool NearestRoad(double e, double n, double maxDist, out RoadInfo info, bool vehicularOnly = true)
+        public bool NearestRoad(double e, double n, double maxDist, out RoadInfo info, bool vehicularOnly = true, Func<RoadWay, double, double, bool> accept = null)
         {
             info = default; double best = maxDist * maxDist; RoadWay bw = null; int bseg = 0; var c = TileGrid.FromLv95(e, n);
             for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++)
@@ -67,6 +67,7 @@ namespace SwissServer.Sim
                 foreach (var w in t.Roads)
                 {
                     if (vehicularOnly && !w.IsVehicular) continue;
+                    if (accept != null && !accept(w, e, n)) continue;
                     for (int i = 0; i + 1 < w.PointCount; i++)
                     {
                         double d = PolygonUtil.DistToSegment(new Vec2d(e, n), new Vec2d(w.E[i], w.N[i]), new Vec2d(w.E[i + 1], w.N[i + 1])); d *= d;

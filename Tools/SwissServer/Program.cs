@@ -75,6 +75,7 @@ namespace SwissServer
                 for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) { var t = w.Content(new TileId(c.X + dx, c.Y + dy)); if (t?.Buildings == null) continue; foreach (var b in t.Buildings) if (b.Footprint.Outer.Count > 2 && SwissPoliceSim.Core.Geometry.PolygonUtil.PointInRing(b.Footprint.Outer, e, n)) inside++; }
                 Console.WriteLine($"{name}: E {e:F1} N {n:F1} H {(name == "Spieler" ? g.PH : g.VH):F1}, in {inside} Gebaeudegrundrissen"); if (inside > 0) bad = true;
             }
+            if (w.NearestRoad(g.VE, g.VN, 40, out var ri)) Console.WriteLine($"Strasse: {ri.Name} ({ri.Way.Class}, Tempo {ri.SpeedLimitKmh}), Abstand {ri.Distance:F1} m");
             Console.WriteLine($"Fahrzeug-Peilung {g.VYaw:F0} Grad"); return bad ? 1 : 0;
         }
 

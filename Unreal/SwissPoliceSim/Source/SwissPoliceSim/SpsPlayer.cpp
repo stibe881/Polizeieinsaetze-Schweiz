@@ -161,6 +161,10 @@ void ASpsPlayerCar::Tick(float Dt)
 	if (Blocked.bBlockingHit)
 	{
 		const float Impact = FMath::Abs(SpeedMs);
+		{   // Diagnose "unsichtbare Wand": was blockiert? (hoechstens 1x pro Sekunde)
+			static double LastBlockLog = 0.0; const double T = GetWorld()->GetTimeSeconds();
+			if (T - LastBlockLog > 1.0) { LastBlockLog = T; auto* BC = Blocked.GetComponent(); UE_LOG(LogTemp, Warning, TEXT("[SPS] Auto blockiert von %s / %s, Aufprall %.0f cm ueber Boden, Normale (%.2f, %.2f, %.2f)"), BC ? *BC->GetName() : TEXT("?"), Blocked.GetActor() ? *Blocked.GetActor()->GetName() : TEXT("?"), Blocked.ImpactPoint.Z - GroundZ, Blocked.ImpactNormal.X, Blocked.ImpactNormal.Y, Blocked.ImpactNormal.Z); }
+		}
 		if (Impact > 2.f) { Damage = FMath::Clamp(Damage + Impact * 0.004f, 0.f, 1.f); if (ASpsClient* C = ASpsClient::Get(GetWorld())) C->OnPlayerCrash(Blocked.GetActor(), Impact); }
 		SpeedMs *= -0.15f;
 	}
