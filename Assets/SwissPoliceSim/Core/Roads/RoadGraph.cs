@@ -99,6 +99,12 @@ namespace SwissPoliceSim.Core.Roads
 
         public void GetNodePosition(int node, out double e, out double n) { e = _e[node]; n = _n[node]; }
 
+        // --- low level access for layered / hierarchical routing
+        public bool TryGetIndex(long osmNodeId, out int index) => _index.TryGetValue(osmNodeId, out index);
+        public long IdAt(int index) => _ids[index];
+        public int OutCount(int index) => _adj[index].Count;
+        public void OutEdge(int index, int k, out int to, out float lengthM, out float seconds) { var e = _adj[index][k]; to = e.To; lengthM = e.Length; seconds = e.Seconds; }
+
         /// <summary>Direction (unit vector, E/N) of the first outgoing edge of a node; false for dead-end nodes without edges.</summary>
         public bool TryGetNodeHeading(int node, out double dirE, out double dirN)
         {

@@ -254,3 +254,105 @@ namespace SwissPoliceSim.Tests
         }
     }
 }
+
+namespace SwissPoliceSim.Tests
+{
+    using SwissPoliceSim.Core.Roads;
+    public class HierarchicalRouterTests
+    {
+        static LooseTileSource Src() { var d = TestPaths.Find("Assets", "StreamingAssets", "SwissWorld", "tiles"); if (d == null) NUnit.Framework.Assert.Ignore("pilot not baked"); return new LooseTileSource(d); }
+
+        static RoadGraph FullGraph(LooseTileSource src)
+        {
+            var g = new RoadGraph();
+            foreach (var t in src.Tiles) { src.TryRead(t, out var b); var c = SwissPoliceSim.Core.Storage.TileContainer.Deserialize(b); if (c.TryGet("ROAD", out var r)) using (var ms = new System.IO.MemoryStream(r)) foreach (var w in RoadTileFile.Read(ms, out _)) g.AddWay(w); }
+            return g;
+        }
+
+        [NUnit.Framework.Test]
+        public void ShortRoute_IsExact_AndLoadsOnlyTheCorridor()
+        {
+            var src = Src(); var full = FullGraph(src); var router = new HierarchicalRouter(src);
+            var a = SwissCoordinateConverter.ToLv95(46.94658, 7.44410); var b = SwissCoordinateConverter.ToLv95(46.9633, 7.4649);
+            var exact = full.FindRoute(a.E, a.N, b.E, b.N); var h = router.Route(a.E, a.N, b.E, b.N);
+            NUnit.Framework.Assert.IsNotNull(h);
+            NUnit.Framework.Assert.AreEqual(exact.TimeSeconds, h.TimeSeconds, exact.TimeSeconds * 0.02);
+            TestContext.WriteLine($"exact {exact.TimeSeconds:F0}s {exact.DistanceMeters:F0}m; hier {h.TimeSeconds:F0}s; tiles {router.TilesLoadedLastQuery}");
+        }
+
+        [NUnit.Framework.Test]
+        public void LongRoute_UsesArterialSkeleton_WithSmallDetour_AndBoundedMemory()
+        {
+            var src = Src(); var full = FullGraph(src);
+            var router = new HierarchicalRouter(src) { LocalRadiusMeters = 700, ShortRouteMeters = 1500, TileCacheCapacity = 8 };
+            var ways = HierarchicalRouter.CollectArterial(src, RoadClass.SecondaryLink); router.SetArterial(ways);
+            int total = 0; foreach (var l in ways.Values) total += l.Count;
+            TestContext.WriteLine($"arterial ways {total}, nodes {router.ArterialNodes}");
+            var rnd = new System.Random(3); var all = new List<TileId>(src.Tiles); int ok = 0; double worst = 1;
+            for (int i = 0; i < 25; i++)
+            {
+                var ta = all[rnd.Next(all.Count)]; var tb = all[rnd.Next(all.Count)];
+                double ae = TileGrid.MinE(ta) + rnd.Next(1000), an = TileGrid.MinN(ta) + rnd.Next(1000), be = TileGrid.MinE(tb) + rnd.Next(1000), bn = TileGrid.MinN(tb) + rnd.Next(1000);
+                var exact = full.FindRoute(ae, an, be, bn); if (exact == null) continue;
+                var h = router.Route(ae, an, be, bn); if (h == null) continue;
+                ok++; worst = Math.Max(worst, h.TimeSeconds / exact.TimeSeconds);
+                NUnit.Framework.Assert.LessOrEqual(router.CachedTiles, 8);
+                NUnit.Framework.Assert.GreaterOrEqual(h.TimeSeconds, exact.TimeSeconds * 0.999, "hierarchical route can never beat the optimum");
+            }
+            TestContext.WriteLine($"{ok} routes compared, worst ratio {worst:F2}");
+            NUnit.Framework.Assert.Greater(ok, 12); NUnit.Framework.Assert.LessOrEqual(worst, 1.6);
+        }
+
+        [NUnit.Framework.Test]
+        public void ArterialPack_RoundTrips()
+        {
+            var src = Src(); var ways = HierarchicalRouter.CollectArterial(src, RoadClass.SecondaryLink);
+            string p = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "art_" + Guid.NewGuid().ToString("N") + ".sprg");
+            HierarchicalRouter.SaveArterial(p, ways); var r = new HierarchicalRouter(src); r.LoadArterial(p);
+            var r2 = new HierarchicalRouter(src); r2.SetArterial(ways);
+            NUnit.Framework.Assert.AreEqual(r2.ArterialNodes, r.ArterialNodes); System.IO.File.Delete(p);
+        }
+    }
+}
+
+namespace SwissPoliceSim.Tests
+{
+    using SwissPoliceSim.Core.Terrain;
+    public class ScalingStorageTests
+    {
+        [NUnit.Framework.Test]
+        public void TerrainV2_RoundTripsExactly_AndIsSmallerThanRawQ16()
+        {
+            var rnd = new System.Random(4); int n = 257; var td = new TerrainTileData { Tile = new TileId(2600, 1199), Resolution = n, Q = new ushort[n * n], MinH = 500, MaxH = 500 + 65535 * TerrainTileData.Step };
+            for (int r = 0; r < n; r++) for (int c = 0; c < n; c++) td.Q[r * n + c] = (ushort)(2000 + 600 * Math.Sin(c * 0.03) + 500 * Math.Cos(r * 0.02) + rnd.Next(3));
+            var b = td.ToBytes(); var back = TerrainTileData.Read(new System.IO.MemoryStream(b));
+            NUnit.Framework.Assert.AreEqual(td.Q, back.Q); NUnit.Framework.Assert.AreEqual(td.MinH, back.MinH);
+            NUnit.Framework.Assert.Less(b.Length, n * n * 2 * 0.7, "predictive coding must beat raw ushorts");
+            var coarse = td.Downsample(4); NUnit.Framework.Assert.AreEqual(65, coarse.Resolution); NUnit.Framework.Assert.AreEqual(td.Q[4 * n + 8], coarse.Q[1 * 65 + 2]);
+        }
+
+        [NUnit.Framework.Test]
+        public void PilotTiles_HaveCoarseChunk_AndMacroBlocksCoverThem()
+        {
+            var d = TestPaths.Find("Assets", "StreamingAssets", "SwissWorld", "tiles"); if (d == null) NUnit.Framework.Assert.Ignore("pilot not baked");
+            var src = new LooseTileSource(d); int checkedTiles = 0;
+            foreach (var t in src.Tiles)
+            {
+                src.TryRead(t, out var bytes); var c = SwissPoliceSim.Core.Storage.TileContainer.Deserialize(bytes);
+                NUnit.Framework.Assert.IsTrue(c.TryGet("TERC", out var terc)); var coarse = TerrainTileData.Read(new System.IO.MemoryStream(terc)); NUnit.Framework.Assert.AreEqual(65, coarse.Resolution);
+                var fine = TerrainTileData.Read(new System.IO.MemoryStream(c.Chunks["TERR"]));
+                NUnit.Framework.Assert.AreEqual(fine.SampleLocal(500, 500), coarse.SampleLocal(500, 500), 3.0, "coarse level must approximate the fine terrain"); checkedTiles++;
+            }
+            string tmp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "macro_" + Guid.NewGuid().ToString("N"));
+            int blocks = MacroTerrainBuilder.Build(src, tmp);
+            NUnit.Framework.Assert.GreaterOrEqual(blocks, 1);
+            var anyTile = new List<TileId>(src.Tiles)[0]; var (bx, by) = MacroBlock.BlockOf(anyTile);
+            MacroBlock mb; using (var fs = System.IO.File.OpenRead(System.IO.Path.Combine(tmp, MacroBlock.FileName(bx, by)))) mb = MacroBlock.Read(fs);
+            double e = TileGrid.MinE(anyTile) + 500, n = TileGrid.MinN(anyTile) + 500; src.TryRead(anyTile, out var ab);
+            var fineT = TerrainTileData.Read(new System.IO.MemoryStream(SwissPoliceSim.Core.Storage.TileContainer.Deserialize(ab).Chunks["TERR"]));
+            NUnit.Framework.Assert.AreEqual(fineT.SampleLocal(500, 500), mb.Sample(e, n), 6.0);
+            NUnit.Framework.Assert.IsTrue(mb.Present[(anyTile.Y - by * 8) * 8 + (anyTile.X - bx * 8)]);
+            System.IO.Directory.Delete(tmp, true);
+        }
+    }
+}

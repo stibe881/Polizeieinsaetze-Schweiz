@@ -158,8 +158,7 @@ namespace SwissPoliceSim.Tests
             Assert.AreEqual(d.MinH, d2.MinH); Assert.AreEqual(d.MaxH, d2.MaxH);
             // plane gradient: at tile-local (400, 300) expect 500+40+60 = 600 (+ tolerance for quantisation)
             Assert.AreEqual(600f, d2.SampleLocal(400, 300), 0.05f);
-            float range = d.MaxH - d.MinH;
-            Assert.Less(range / 65535f, 0.01f);
+            Assert.AreEqual(TerrainTileData.Step, (d.MaxH - d.MinH) / 65535f, 1e-6f);   // fixed 5 cm vertical quantisation
         }
     }
 

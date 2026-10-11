@@ -112,8 +112,12 @@ namespace SwissPoliceSim.Core.Import
 
                 if (dem.Has(t))
                 {
-                    var td = TerrainTileData.Bake(carved, t, TerrainResolution);
-                    using (var ms = new MemoryStream()) { td.Write(ms); cont.Chunks["TERR"] = ms.ToArray(); }
+                    // adaptive resolution: tiles without roads or buildings (alpine, forest) need only 7.8 m spacing; settled tiles get 3.9 m
+                    bool settled = (perTileRoads.TryGetValue(t, out var rr0) && rr0.Count > 0) || (perTileB.TryGetValue(t, out var bb0) && bb0.Count > 0);
+                    int res = settled ? TerrainResolution : (TerrainResolution - 1) / 2 + 1;
+                    var td = TerrainTileData.Bake(carved, t, res);
+                    cont.Chunks["TERR"] = td.ToBytes();
+                    cont.Chunks["TERC"] = td.Downsample((res - 1) / 64).ToBytes();       // 65×65 coarse level for distant tiles
                 }
                 perTileRoads.TryGetValue(t, out var roads);
                 using (var ms = new MemoryStream()) { RoadTileFile.Write(ms, t, roads ?? new List<RoadWay>()); cont.Chunks["ROAD"] = ms.ToArray(); }
