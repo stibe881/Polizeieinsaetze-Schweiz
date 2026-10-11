@@ -45,6 +45,7 @@ private:
 	void OnQuickSave();
 	void OnQuickLoad();
 	void OnPause();
+	void OnToggleUi();
 	void OnComputer() { OpenUi(TEXT("computer")); }
 	void OnMap() { OpenUi(TEXT("map")); }
 	void OnReport() { OpenUi(TEXT("report")); }

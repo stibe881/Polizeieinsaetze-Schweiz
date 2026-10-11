@@ -234,7 +234,7 @@ struct UInputComponent : UObject
 {
 	template <class U, class F> void BindAxisKey(FKey, U*, F) {} template <class U, class F> void BindKey(FKey, int, U*, F) {}
 };
-namespace EKeys { extern FKey W, A, S, D, F, E, R, G, C, V, M, P, N, K, B, Q, L, H, F1, F5, F9, Tab, Enter, BackSpace, Escape, LeftShift, SpaceBar, MouseX, MouseY, LeftMouseButton; }
+namespace EKeys { extern FKey W, A, S, D, F, E, R, G, C, V, M, P, N, K, B, Q, L, H, F1, F2, F5, F9, Tab, Enter, BackSpace, Escape, LeftShift, SpaceBar, MouseX, MouseY, LeftMouseButton; }
 enum { IE_Pressed, IE_Released };
 enum class EAutoReceiveInput { Disabled };
 
@@ -308,7 +308,9 @@ struct IWebSocket
 };
 struct FWebSocketsModule { TSharedRef<IWebSocket> CreateWebSocket(const FString&) { return MakeShared<IWebSocket>(); } };
 // slate
-struct SWidget {}; struct SWeakWidget; struct SWebBrowser : SWidget {};
+struct EVisibility { int V = 0; static const EVisibility Collapsed; static const EVisibility SelfHitTestInvisible; bool operator!=(const EVisibility& O) const { return V != O.V; } bool operator==(const EVisibility& O) const { return V == O.V; } };
+inline const EVisibility EVisibility::Collapsed{1}; inline const EVisibility EVisibility::SelfHitTestInvisible{2};
+struct SWidget { EVisibility GetVisibility() const { return {}; } void SetVisibility(EVisibility) {} }; struct SWeakWidget; struct SWebBrowser : SWidget {};
 template <class W> struct SArgs { SArgs& InitialURL(const FString&) { return *this; } SArgs& ShowControls(bool) { return *this; } SArgs& ShowAddressBar(bool) { return *this; } SArgs& ShowErrorMessage(bool) { return *this; } SArgs& SupportsTransparency(bool) { return *this; } SArgs& BackgroundColor(FColor) { return *this; } template <class D> SArgs& OnLoadCompleted(D) { return *this; } template <class D> SArgs& OnLoadError(D) { return *this; } SArgs& PossiblyNullContent(TSharedPtr<SWidget>) { return *this; } };
 struct SWeakWidget : SWidget {};
 #define SAssignNew(Var, W) MakeSlate<W>(Var) = SArgs<W>()
