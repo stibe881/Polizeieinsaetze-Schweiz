@@ -493,3 +493,78 @@ namespace SwissPoliceSim.Tests
         }
     }
 }
+
+namespace SwissPoliceSim.Tests
+{
+    using SwissPoliceSim.Core.Game;
+    using SwissPoliceSim.Core.Legal;
+    using SwissPoliceSim.Core.Npc;
+    using SwissPoliceSim.Core.Police;
+    using SwissPoliceSim.Core.Traffic;
+    public class EncounterTests
+    {
+        static Encounter Make(ViolationType v, int measured, int limit, SpeedZone zone, int seed, bool drunk = false, bool wanted = false)
+        {
+            var c = CitizenFactory.Create(seed, "BE", "Bern", "BE 700" + seed, 1, 2); c.Honesty = 0.9f; c.Anger = 0.05f;
+            CitizenFactory.ApplyDriverTruth(c, drunk, drunk ? 0.9f : 0f, false, false, false, false, wanted, seed);
+            var sit = new NpcSituation { TrueViolation = v, NpcGuilty = v != ViolationType.None, MeasuredKmh = measured, LimitKmh = limit, Place = "Bern" };
+            return new Encounter(EncounterKind.TrafficStop, c, sit, PoliceCatalog.ById("KAPO_BE"), TestPaths.Obv(), seed) { Zone = zone };
+        }
+
+        [NUnit.Framework.Test]
+        public void SpeedingStop_CorrectFine_IsLawfulAndScoresWell()
+        {
+            var e = Make(ViolationType.Speeding, 58, 50, SpeedZone.Urban, 1);
+            var d = e.RequestDocuments(); NUnit.Framework.Assert.IsTrue(d.Assessment.Lawful); NUnit.Framework.Assert.IsTrue(e.DocumentsChecked);
+            e.ExplainReason(); e.Say("Danke für Ihre Kooperation, bitte entschuldigen Sie die Umstände.");
+            var f = e.IssueFine(40); NUnit.Framework.Assert.IsTrue(f.Assessment.Lawful, f.ToString()); NUnit.Framework.Assert.AreEqual(40, e.FineChf); StringAssert.Contains("303.1.a", e.FineObvKey);
+            var s = e.Evaluate(); TestContext.WriteLine(string.Join(" | ", s.Findings) + $" score {s.Score01:F2}"); NUnit.Framework.Assert.IsTrue(s.Correct); NUnit.Framework.Assert.Greater(s.Score01, 0.8f);
+            NUnit.Framework.Assert.AreEqual(0, e.UnlawfulActs); NUnit.Framework.Assert.IsTrue(e.Transcript.Count >= 4);
+        }
+
+        [NUnit.Framework.Test]
+        public void SpeedingStop_WrongAmount_WithinTolerance_AndAboveFineRange_AreFlagged()
+        {
+            var wrong = Make(ViolationType.Speeding, 58, 50, SpeedZone.Urban, 2); wrong.IssueFine(120); NUnit.Framework.Assert.Greater(wrong.UnlawfulActs, 0);
+            var tol = Make(ViolationType.Speeding, 53, 50, SpeedZone.Urban, 3); var r = tol.IssueFine(40); NUnit.Framework.Assert.IsFalse(r.Assessment.Lawful, "53 km/h minus 3 km/h tolerance = no violation");
+            var big = Make(ViolationType.Speeding, 95, 50, SpeedZone.Urban, 4); var r2 = big.IssueFine(250); NUnit.Framework.Assert.IsFalse(r2.Assessment.Lawful); StringAssert.Contains("Verzeigung", r2.Assessment.Reasons[0]);
+            var rep = big.Report(); NUnit.Framework.Assert.IsTrue(big.Reported);
+        }
+
+        [NUnit.Framework.Test]
+        public void NoViolation_FineIsUnlawful()
+        {
+            var e = Make(ViolationType.None, 0, 50, SpeedZone.Urban, 5); var r = e.IssueFine(60); NUnit.Framework.Assert.IsFalse(r.Assessment.Lawful); NUnit.Framework.Assert.IsFalse(e.Evaluate().Correct);
+        }
+
+        [NUnit.Framework.Test]
+        public void DrunkDriver_BreathTestFindsQualifiedLevel_ReleasingThemIsUnlawful()
+        {
+            for (int seed = 10; seed < 40; seed++)
+            {
+                var e = Make(ViolationType.None, 0, 50, SpeedZone.Urban, seed, drunk: true); var r = e.RequestBreathTest();
+                if (e.BreathRefused) continue;
+                NUnit.Framework.Assert.IsTrue(e.BreathTestDone); NUnit.Framework.Assert.GreaterOrEqual(e.BreathMgPerL, 0.4f); StringAssert.Contains("QUALIFIZIERT", r.Text);
+                NUnit.Framework.Assert.AreEqual(ViolationType.ImpairedDriving, e.TrueViolation);
+                var rel = e.Release(); NUnit.Framework.Assert.IsFalse(rel.Assessment.Lawful); return;
+            }
+            NUnit.Framework.Assert.Fail("every drunk driver refused the test – unexpected");
+        }
+
+        [NUnit.Framework.Test]
+        public void WantedPerson_ComputerQueryEnablesLawfulArrest_ReleasingIsAnError()
+        {
+            var e = Make(ViolationType.None, 0, 50, SpeedZone.Urban, 7, wanted: true); var pc = new PoliceComputer(); pc.Register(e.Person);
+            var q = e.QueryComputer(pc, true); NUnit.Framework.Assert.IsTrue(e.Ctx.Wanted); StringAssert.Contains("AUSSCHREIBUNG", q.ToString());
+            var a = e.Arrest(); NUnit.Framework.Assert.IsTrue(a.Assessment.Lawful, a.ToString()); e.ReadRights(); NUnit.Framework.Assert.IsTrue(e.RightsRead);
+            var s = e.Evaluate(); NUnit.Framework.Assert.IsTrue(s.Findings.Exists(f => f.Contains("festgenommen")));
+            var e2 = Make(ViolationType.None, 0, 50, SpeedZone.Urban, 7, wanted: true); var rel = e2.Release(); NUnit.Framework.Assert.IsFalse(rel.Assessment.Lawful);
+        }
+
+        [NUnit.Framework.Test]
+        public void ArrestWithoutSuspicion_IsUnlawfulWithCriminalRelevance()
+        {
+            var e = Make(ViolationType.None, 0, 50, SpeedZone.Urban, 9); var a = e.Arrest(); NUnit.Framework.Assert.IsFalse(a.Assessment.Lawful); NUnit.Framework.Assert.GreaterOrEqual(a.Assessment.Severity, 3);
+        }
+    }
+}
