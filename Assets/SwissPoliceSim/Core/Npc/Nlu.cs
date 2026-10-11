@@ -10,7 +10,7 @@ namespace SwissPoliceSim.Core.Npc
     {
         Unknown, Greeting, Goodbye, AskIfKnowsReason, StateReason, RequestLicense, RequestRegistration, RequestAllDocuments, AskName, AskAddress, AskDestination, AskOrigin,
         AskAlcohol, AskDrugs, RequestBreathTest, RequestStepOut, RequestOpenTrunk, RequestSearchConsent, AnnounceFine, AnnounceWarning, AnnounceReport, AnnounceArrest, ReadRights,
-        ThankYou, Apologize, Threaten, Insult, Calm, AskIfInjured, AskPhoneUse, AskSeatbelt, AskSpeedReason, ReleaseDriver, OrderStayInCar, AskToRepeat, RequestMove
+        ThankYou, Apologize, Threaten, Insult, Calm, AskIfInjured, AskPhoneUse, AskSeatbelt, AskSpeedReason, ReleaseDriver, OrderStayInCar, AskToRepeat, RequestMove, AskWhatHappened
     }
 
     public sealed class ParsedUtterance
@@ -74,6 +74,7 @@ namespace SwissPoliceSim.Core.Npc
             new Rule(Intent.AskSeatbelt, @"(angegurtet|angeschnallt|gurt (an|getragen)|mettez votre ceinture|allacciat|seat ?belt on)"),
             new Rule(Intent.AskSpeedReason, @"(warum.{0,15}(so schnell|eilig)|wieso.{0,10}eilig|pressiert|pourquoi.{0,15}press|perch[eé].{0,15}fretta|why.{0,15}(hurry|rush))"),
             new Rule(Intent.ReleaseDriver, @"(sie k[oö]nnen gehen|sie sind entlassen|fahren sie weiter|weiterfahren|vous pouvez continuer|pu[oò] proseguire|you can go)"),
+            new Rule(Intent.AskWhatHappened, @"(was ist (hier )?(passiert|geschehen|los)|erz[äa]hlen sie|schildern sie|wie ist es dazu gekommen|hergang|was haben sie (gesehen|beobachtet)|was ist vorgefallen|que s.est.il pass|racontez|cosa [èe] successo|racconti|what happened|tell me what)"),
             new Rule(Intent.AskToRepeat, @"(noch einmal|wiederholen sie|wie bitte|pardon\?|r[eé]p[eé]tez|ripeta|say again|repeat)"),
             new Rule(Intent.RequestMove, @"(fahren sie (vor|weiter vor|rechts ran|zur seite)|parkieren sie|stellen sie.{0,15}ab|motor abstellen|moteur|spegnere il motore|turn off the engine|pull over)"),
         };

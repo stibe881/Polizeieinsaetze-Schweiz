@@ -29,6 +29,8 @@ namespace SwissPoliceSim.Core.Police
         public readonly List<QueryLogEntry> Log = new List<QueryLogEntry>();
         public readonly HashSet<string> WantedPlates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);   // active vehicle alerts (Fahndung)
         public double Now;
+        /// <summary>Optional hook: resolve a plate to the person of a currently simulated vehicle so the computer agrees with what the driver says.</summary>
+        public Func<string, Citizen> Resolver;
 
         static string NormPlate(string p) => (p ?? "").Replace(" ", "").Replace(".", "").Replace("-", "").ToUpperInvariant();
 
@@ -58,7 +60,7 @@ namespace SwissPoliceSim.Core.Police
         {
             string np = NormPlate(plate); if (np.Length < 3) return null;
             if (_byPlate.TryGetValue(np, out var c)) return c;
-            c = Synthesize(plate); Register(c); return c;
+            c = Resolver?.Invoke(plate) ?? Synthesize(plate); Register(c); return c;
         }
 
         // ------------------------------------------------------------------ queries

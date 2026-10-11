@@ -23,7 +23,7 @@ namespace SwissPoliceSim.Core.Npc
     {
         public ViolationType TrueViolation = ViolationType.None; public bool NpcGuilty; public float MeasuredKmh; public int LimitKmh; public string Place = "";
         public bool IsDriver = true; public bool InVehicle = true; public bool BreathTestDone; public bool ExplainedReason;
-        public bool TimeOfDayNight;
+        public bool TimeOfDayNight; public string Statement = "";
     }
 
     /// <summary>
@@ -156,6 +156,7 @@ namespace SwissPoliceSim.Core.Npc
                 case Intent.AskIfInjured: return Pick(lang, new[] { "Nein, mir geht es gut, danke der Nachfrage." }, new[] { "Non, ça va, merci." }, new[] { "No, sto bene, grazie." }, new[] { "No, I'm fine, thanks." });
 
                 case Intent.AskPhoneUse: return AnswerPhone(lang, reply);
+                case Intent.AskWhatHappened: if (!string.IsNullOrEmpty(S.Statement)) { if (S.NpcGuilty && C.Honesty < 0.6f) reply.Lied = true; return S.Statement; } return Pick(lang, new[] { "Ich weiss nicht, was Sie meinen." }, new[] { "Je ne sais pas ce que vous voulez dire." }, new[] { "Non so cosa intende." }, new[] { "I don't know what you mean." });
                 case Intent.AskSeatbelt: return AnswerBelt(lang, reply);
                 case Intent.AskSpeedReason: return Pick(lang, new[] { "Ich war ein bisschen spät dran, tut mir leid.", "Ich habe nicht auf die Geschwindigkeit geachtet.", "Ich bin keineswegs zu schnell gefahren." }, new[] { "J'étais un peu en retard.", "Je n'ai pas fait attention à ma vitesse." }, new[] { "Ero un po' in ritardo.", "Non ho badato alla velocità." }, new[] { "I was running a bit late." });
 

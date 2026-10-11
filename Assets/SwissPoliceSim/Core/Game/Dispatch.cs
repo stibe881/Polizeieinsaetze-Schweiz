@@ -85,7 +85,7 @@ namespace SwissPoliceSim.Core.Game
                 var m = _admin?.FindMunicipality(ie, inn); var c = _admin?.FindCanton(ie, inn);
                 inc.Municipality = m?.Name ?? ""; inc.Canton = c != null ? AdminBoundaries.CantonAbbr[c.Id] : "";
                 inc.Address = (string.IsNullOrEmpty(l.Name) ? (string.IsNullOrEmpty(l.Ref) ? "Strasse" : l.Ref) : l.Name) + (type == IncidentType.Burglary || type == IncidentType.NoiseComplaint || type == IncidentType.Dispute ? " " + (1 + _r.Next(60)) : "");
-                BuildText(inc, l); BuildScenario(inc, l);
+                BuildText(inc, l); BuildScenario(inc, l); IncidentStatements.Fill(inc, _r);
                 Incidents.Add(inc);
                 return inc;
             }

@@ -568,3 +568,20 @@ namespace SwissPoliceSim.Tests
         }
     }
 }
+
+namespace SwissPoliceSim.Tests
+{
+    using SwissPoliceSim.Core.Npc;
+    public class StatementTests
+    {
+        [NUnit.Framework.Test]
+        public void AskWhatHappened_IsParsed_AndAnsweredWithTheRoleStatement()
+        {
+            foreach (var q in new[] { "Was ist hier passiert?", "Können Sie mir den Hergang schildern?", "Racontez-moi ce qui s'est passé", "What happened here?" })
+                NUnit.Framework.Assert.IsTrue(Nlu.Parse(q).Has(Intent.AskWhatHappened), q);
+            var c = CitizenFactory.Create(3, "BE", "Bern", "BE 111", 1, 1); c.Honesty = 0.9f;
+            var mind = new NpcMind(c, new NpcSituation { Statement = "Der andere ist bei Rot gefahren." }, 1);
+            var r = mind.Respond(Nlu.Parse("Was ist passiert?")); StringAssert.Contains("bei Rot", r.Text);
+        }
+    }
+}
