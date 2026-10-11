@@ -83,6 +83,17 @@ static class P
             await Send(new { t = "enc", op = "queryPlate" }); await Task.Delay(300); await Send(new { t = "enc", op = "end" }); var ee = await WaitFor("encounterEnd", 3000); Check(ee != null, "encounter ended");
         }
 
+        // optional LLM rephrasing against a local fake of the Anthropic API
+        if (target.id != 0)
+        {
+            var http = new System.Net.HttpListener(); http.Prefixes.Add("http://127.0.0.1:47811/"); http.Start();
+            _ = Task.Run(async () => { while (http.IsListening) { try { var ctx = await http.GetContextAsync(); var body = "{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"say\\\":\\\"Selbstverständlich, einen Moment, ich suche meine Papiere zusammen.\\\",\\\"action\\\":\\\"none\\\"}\"}]}"; var b = Encoding.UTF8.GetBytes(body); ctx.Response.ContentType = "application/json"; await ctx.Response.OutputStream.WriteAsync(b); ctx.Response.Close(); } catch (Exception) { } } });
+            await Send(new { t = "llm", enabled = true, key = "test-key", url = "http://127.0.0.1:47811/v1/messages" });
+            await Pose(target.e + 2, target.n, H); await Send(new { t = "approach", vehicleId = target.id }); var enc2 = await WaitFor("encounter", 3000);
+            if (enc2 != null) { lock (L) Texts.RemoveAll(x => x.TryGetProperty("t", out var tv) && (tv.GetString() == "speak")); await Send(new { t = "say", text = "Guten Tag, Ihre Papiere bitte." }); var sp = await WaitFor("speak", 5000); Check(sp != null && sp.Value.GetProperty("text").GetString().Contains("Papiere zusammen"), "LLM line replaced the offline reply: " + (sp != null ? sp.Value.GetProperty("text").GetString() : "(none)")); await Send(new { t = "enc", op = "end" }); await Task.Delay(300); }
+            await Send(new { t = "llm", enabled = false }); http.Stop();
+        }
+
         // computer, navigation, save/load
         await Send(new { t = "computer", kind = "plate", plate = "BE 123456", reason = 0 }); var cr = await WaitFor("computerResult", 3000); Check(cr != null && cr.Value.GetProperty("lines").GetArrayLength() > 0, "computer plate query");
         await Send(new { t = "computer", kind = "plate", plate = "BE 123456", reason = 4 }); cr = await WaitFor("computerResult", 3000); Check(cr != null && !cr.Value.GetProperty("lawful").GetBoolean(), "private-interest query is flagged unlawful");

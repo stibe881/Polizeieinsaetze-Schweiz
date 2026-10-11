@@ -18,7 +18,7 @@ Das Spiel besteht aus **zwei Teilen**: einem C#-Server (Spiellogik, Weltdaten) u
 Steuerung: `F1` im Spiel. Wichtigste Tasten: WASD · Maus · F Fahrzeug · E ansprechen · G anhalten · R Radarpistole · B Blaulicht · Q Sirene · Tab Computer · M Karte/Navi · P Rapport · N Notizbuch · K Laufbahn · F5/F9 Schnellspeichern/-laden · Esc Pause.
 
 ## Optionales
-* **KI-Dialoge:** Umgebungsvariable `ANTHROPIC_API_KEY` setzen und im Pausenmenü aktivieren. Das Modell formuliert nur die Antwort um; Aktionen und Zustand bleiben beim Offline-NPC-Modell. Der Schlüssel wird nie gespeichert.
+* **KI-Dialoge:** Umgebungsvariable `ANTHROPIC_API_KEY` setzen (oder den Schlüssel im Pausenfenster der Web-UI eingeben, nur im Speicher) und „KI-Formulierung“ aktivieren. Getestet nur gegen eine lokale Attrappe der API, nicht gegen die echte. Das Modell formuliert nur die Antwort um; Aktionen und Zustand bleiben beim Offline-NPC-Modell. Der Schlüssel wird nie gespeichert.
 * **Sprache:** Windows-Sprachausgabe/-erkennung (System.Speech via PowerShell), je nach installierten Sprachpaketen.
 
 ## Tests (ohne Unity)

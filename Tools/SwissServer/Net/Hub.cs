@@ -40,6 +40,9 @@ namespace SwissServer.Net
         public static readonly JsonSerializerOptions Json = new JsonSerializerOptions { PropertyNamingPolicy = null, IncludeFields = true };
         readonly List<ClientConn> _clients = new List<ClientConn>(); readonly object _cl = new object(); int _nextId = 1;
         readonly ConcurrentQueue<(ClientConn c, JsonElement msg)> _cmds = new ConcurrentQueue<(ClientConn, JsonElement)>();
+        readonly ConcurrentQueue<Action> _posts = new ConcurrentQueue<Action>();
+        /// <summary>Runs an action on the game thread (used by background tasks such as the LLM call).</summary>
+        public void Post(Action a) => _posts.Enqueue(a);
         public readonly WorldStore W; public Game Game; readonly string _lawDir; int _tileJobs; int _tick;
 
         public Hub(WorldStore w, string lawDir) { W = w; _lawDir = lawDir; Game = new Game(w, this); Game.LoadLaw(lawDir); }
@@ -75,6 +78,7 @@ namespace SwissServer.Net
         public void Step(float dt)
         {
             while (_cmds.TryDequeue(out var cm)) { try { Handle(cm.c, cm.msg); } catch (Exception ex) { Console.WriteLine("command error: " + ex.Message); cm.c.SendText(JsonSerializer.Serialize(new { t = "error", message = ex.Message })); } }
+            while (_posts.TryDequeue(out var act)) { try { act(); } catch (Exception ex) { Console.WriteLine("post error: " + ex.Message); } }
             Game.Tick(dt); Game.TickScenery(); _tick++;
             if (!Game.Playing) return;
             foreach (var c in Clients()) { if (c.Role == "game") StreamTiles(c); if (c.Role == "game" || c.Role == "sandbox") SendEntities(c); }
@@ -122,6 +126,7 @@ namespace SwissServer.Net
                 case "skip": if (g.Career != null && g.Career.Suspended) { g.Clock.ElapsedGameSeconds = g.Career.SuspendedUntil + 1; g.Career.Suspended = false; g.Career.ComplaintsOpen = 0; g.Career.InvestigationsOpen = Math.Max(0, g.Career.InvestigationsOpen - 1); g.Warn("Die Suspendierung ist abgelaufen. Sie sind wieder im Dienst."); } break;
                 case "promote": if (g.Career != null && g.Career.TryPromote()) g.Good("Befördert zum Rang: " + g.Career.RankName(g.Corps)); break;
                 case "ui": Broadcast(m); break;
+                case "llm": g.Llm.Enabled = m.GetProperty("enabled").GetBoolean(); if (m.TryGetProperty("key", out var lk) && lk.ValueKind == JsonValueKind.String && lk.GetString().Length > 0) g.Llm.ApiKey = lk.GetString(); if (m.TryGetProperty("model", out var lm) && lm.ValueKind == JsonValueKind.String && lm.GetString().Length > 0) g.Llm.Model = lm.GetString(); if (m.TryGetProperty("url", out var lu) && lu.ValueKind == JsonValueKind.String && (lu.GetString().StartsWith("http://127.0.0.1") || lu.GetString().StartsWith("http://localhost"))) g.Llm.Endpoint = lu.GetString(); g.Llm.Status = g.Llm.Ready ? "bereit" : (g.Llm.Enabled ? "kein Schlüssel" : "aus"); break;
                 case "ping": c.SendText("{\"t\":\"pong\"}"); break;
             }
         }

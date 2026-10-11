@@ -109,11 +109,29 @@ namespace SwissServer.Sim
             return r;
         }
 
+        public void SpeakNow(string text) => Speak(text);
         void Speak(string text) { if (Encounter == null) return; Hub.Broadcast(new { t = "speak", text, lang = Encounter.Language, female = Encounter.Person.Gender == Gender.Female }); }
+
+        public readonly LlmService Llm = new LlmService();
 
         public void Say(string text)
         {
-            if (!InEncounter || string.IsNullOrWhiteSpace(text)) return; var r = Encounter.Say(text); HandleReactions(); Speak(r.Text);
+            if (!InEncounter || string.IsNullOrWhiteSpace(text)) return; var enc = Encounter; var r = enc.Say(text); HandleReactions();
+            bool useLlm = Llm.Ready && enc.Transcript.Count > 0;
+            if (useLlm)
+            {   // the model only rephrases the line; actions and state stay with the offline mind. The offline line is shown/spoken at once if the model is slow or fails.
+                int line = enc.Transcript.Count - 1; string offline = r.Text; var parsed = Nlu.Parse(text); var mind = enc.Mind; string corps = Corps.Name; var speaker = enc.Person;
+                Task.Run(async () =>
+                {
+                    string phrased = await Llm.PhraseAsync(mind, corps, parsed, text, offline);
+                    Hub.Post(() =>
+                    {
+                        if (!string.IsNullOrWhiteSpace(phrased) && line < enc.Transcript.Count) enc.Transcript[line].Text = phrased;
+                        if (Encounter == enc) { PushEncounter(); Speak(!string.IsNullOrWhiteSpace(phrased) ? phrased : offline); }
+                    });
+                });
+            }
+            else Speak(r.Text);
             if (Encounter != null && Encounter.Mind.Anger > 0.85f && Encounter.Ctx.Resistance == Resistance.None) Encounter.Ctx.Resistance = Resistance.Passive;
             PushEncounter();
         }
