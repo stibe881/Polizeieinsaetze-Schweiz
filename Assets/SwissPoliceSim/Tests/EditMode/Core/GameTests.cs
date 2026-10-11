@@ -356,3 +356,95 @@ namespace SwissPoliceSim.Tests
         }
     }
 }
+
+namespace SwissPoliceSim.Tests
+{
+    using SwissPoliceSim.Core.Police;
+    using SwissPoliceSim.Core.Npc;
+    using SwissPoliceSim.Core.Roads;
+    using SwissPoliceSim.Core.Traffic;
+    using SwissPoliceSim.Core.Game;
+    public class ComputerPursuitPedestrianTests
+    {
+        [NUnit.Framework.Test]
+        public void PoliceComputer_SamePlateSameAnswer_AndLogsUnlawfulQueries()
+        {
+            var pc = new PoliceComputer();
+            var a = pc.QueryPlate("BE 123456", "Verkehrskontrolle"); var b = pc.QueryPlate("be123456", "Verkehrskontrolle");
+            NUnit.Framework.Assert.IsTrue(a.Found); NUnit.Framework.Assert.AreEqual(string.Join("|", a.Lines), string.Join("|", b.Lines));
+            NUnit.Framework.Assert.IsTrue(a.Assessment.Lawful);
+            var curious = pc.QueryPlate("ZH", ""); NUnit.Framework.Assert.IsFalse(curious.Found);
+            var nosy = pc.QueryPerson("Hans", "Muster", "", "");
+            NUnit.Framework.Assert.IsFalse(nosy.Assessment.Lawful); NUnit.Framework.Assert.AreEqual(4, pc.Log.Count);
+            // statistics: stolen / uninsured are rare but present
+            int stolen = 0, unins = 0; for (int i = 0; i < 4000; i++) { var r = pc.QueryPlate("BE " + (100000 + i * 7), "Rasterkontrolle"); if ((r.Flags & QueryFlags.Stolen) != 0) stolen++; if ((r.Flags & QueryFlags.NoInsurance) != 0) unins++; }
+            TestContext.WriteLine($"stolen {stolen}, uninsured {unins} of 4000");
+            NUnit.Framework.Assert.That(stolen, NUnit.Framework.Is.InRange(2, 60)); NUnit.Framework.Assert.That(unins, NUnit.Framework.Is.InRange(10, 150));
+        }
+
+        [NUnit.Framework.Test]
+        public void PoliceComputer_PersonQuery_UsesRegisteredCitizen_ConsistentWithPlate()
+        {
+            var pc = new PoliceComputer(); var c = CitizenFactory.Create(5, "BE", "Bern", "BE 555555", 1, 3);
+            CitizenFactory.ApplyDriverTruth(c, false, 0, false, true, true, false, true, 5); pc.Register(c);
+            var q = pc.QueryPerson(c.FirstName, c.LastName, c.Birthdate, "Personenkontrolle");
+            NUnit.Framework.Assert.IsTrue(q.Found); NUnit.Framework.Assert.IsTrue((q.Flags & QueryFlags.Wanted) != 0); NUnit.Framework.Assert.IsTrue((q.Flags & QueryFlags.LicenseInvalid) != 0);
+            var p = pc.QueryPlate("BE 555555", "Kontrolle"); NUnit.Framework.Assert.IsTrue((p.Flags & QueryFlags.NoInsurance) != 0); StringAssert.Contains(c.LastName, p.ToString());
+        }
+
+        [NUnit.Framework.Test]
+        public void Pursuit_Assessment_FollowsProportionality()
+        {
+            var pm = new PursuitManager { Offence = OffenceClass.Uebertretung, Suspicion = Suspicion.Concrete };
+            var bad = pm.Assess(true, true, riskToOthers: true, inOwnTerritory: true, acrossBorderUrgent: false); NUnit.Framework.Assert.IsFalse(bad.Lawful);
+            var pm2 = new PursuitManager { Offence = OffenceClass.Verbrechen, Suspicion = Suspicion.Strong };
+            NUnit.Framework.Assert.IsTrue(pm2.Assess(true, true, false, true, false).Lawful);
+            NUnit.Framework.Assert.IsFalse(pm2.Assess(false, true, false, true, false).Lawful, "no warning signals");
+            NUnit.Framework.Assert.IsTrue(pm2.Assess(true, true, false, false, true).Lawful, "Nacheile across the cantonal border in an urgent case");
+        }
+
+        static (List<RoadWay>, List<PointFeature>) Load()
+        {
+            var dir = TestPaths.Find("Assets", "StreamingAssets", "SwissWorld", "tiles"); if (dir == null) NUnit.Framework.Assert.Ignore("pilot not baked");
+            var src = new LooseTileSource(dir); var ways = new List<RoadWay>(); var pts = new List<PointFeature>();
+            foreach (var t in src.Tiles) { src.TryRead(t, out var b); var c = TileMeshBuilder.Build(b, false); ways.AddRange(c.Roads); pts.AddRange(c.Points); }
+            return (ways, pts);
+        }
+
+        [NUnit.Framework.Test]
+        public void Pursuit_OnRealNetwork_EndsWithEscapeOrStop()
+        {
+            var (ways, pts) = Load(); var net = TrafficNetwork.Build(ways, pts); var sim = new TrafficSimulation(net, new TrafficParams { Seed = 3, MaxVehicles = 120 });
+            var bp = SwissCoordinateConverter.ToLv95(46.94658, 7.4441); var obs = new List<(double, double)> { (bp.E, bp.N) };
+            for (int i = 0; i < 400; i++) { if (i % 20 == 0) sim.Maintain(obs, 8f); sim.Step(0.1f); }
+            var target = sim.Nearest(bp.E, bp.N, 500, v => v.Mode == DriverMode.Driving); NUnit.Framework.Assert.IsNotNull(target);
+            var pm = new PursuitManager(); NUnit.Framework.Assert.IsTrue(pm.Start(sim, target, OffenceClass.Vergehen, Suspicion.Strong));
+            double oe = bp.E, on = bp.N;       // officer stays put → target must escape
+            for (int i = 0; i < 4000 && pm.Active; i++) { if (i % 20 == 0) sim.Maintain(new List<(double, double)> { (target.E, target.N) }, 8f); sim.Step(0.1f); pm.Update(sim, 0.1f, oe, on); }
+            TestContext.WriteLine($"outcome {pm.Outcome}, elapsed {pm.Elapsed:F0}s, max {pm.MaxTargetKmh:F0} km/h, events: {string.Join(" | ", pm.Events)}");
+            NUnit.Framework.Assert.AreNotEqual(PursuitOutcome.Active, pm.Outcome); NUnit.Framework.Assert.Greater(pm.MaxTargetKmh, 20);
+        }
+
+        [NUnit.Framework.Test]
+        public void Pedestrians_WalkOnSidewalks_CrossAtCrossings_AndDoNotTeleport()
+        {
+            var (ways, pts) = Load(); var sim = new PedestrianSim(ways, pts, 9);
+            TestContext.WriteLine($"walk paths {sim.PathCount}, crossing paths {sim.CrossingPathCount}");
+            NUnit.Framework.Assert.Greater(sim.PathCount, 800); NUnit.Framework.Assert.Greater(sim.CrossingPathCount, 20);
+            var bp = SwissCoordinateConverter.ToLv95(46.94658, 7.4441); var obs = new List<(double, double)> { (bp.E, bp.N) };
+            var last = new Dictionary<int, (double, double)>(); double maxJump = 0; int maxPeds = 0; var crossedIds = new HashSet<int>();
+            for (int step = 0; step < 6000; step++)
+            {
+                if (step % 20 == 0) sim.Maintain(obs, 14f); sim.Step(0.1f);
+                maxPeds = Math.Max(maxPeds, sim.Peds.Count);
+                foreach (var p in sim.Peds)
+                {
+                    if (last.TryGetValue(p.Id, out var l)) { double d = Math.Sqrt((p.E - l.Item1) * (p.E - l.Item1) + (p.N - l.Item2) * (p.N - l.Item2)); maxJump = Math.Max(maxJump, d); }
+                    last[p.Id] = (p.E, p.N); if (p.IsCrossing) crossedIds.Add(p.Id);
+                }
+            }
+            TestContext.WriteLine($"max peds {maxPeds}, crossed {crossedIds.Count}, max step {maxJump:F2} m per 0.1 s");
+            NUnit.Framework.Assert.Greater(maxPeds, 25); NUnit.Framework.Assert.Greater(crossedIds.Count, 3); NUnit.Framework.Assert.Less(maxJump, 0.6, "speed ≤ 2.5 m/s");
+        }
+    }
+}
