@@ -110,8 +110,8 @@ void SpsCreateSection(UProceduralMeshComponent* Target, int32 SectionIndex, cons
 	if (bDoubleSided)
 	{
 		// Rueckseiten mitzeichnen: Boden und Strassen bleiben sichtbar, egal von welcher Seite man sie sieht (Wicklung / Position unter der Oberflaeche)
-		const int32 N0 = Idx.Num(); Idx.Reserve(N0 * 2);
-		for (int32 i = 0; i + 2 < N0; i += 3) { Idx.Add(Idx[i]); Idx.Add(Idx[i + 2]); Idx.Add(Idx[i + 1]); }
+		const int32 N0 = Idx.Num(); Idx.SetNumUninitialized(N0 * 2);
+		for (int32 i = 0; i + 2 < N0; i += 3) { Idx[N0 + i] = Idx[i]; Idx[N0 + i + 1] = Idx[i + 2]; Idx[N0 + i + 2] = Idx[i + 1]; }
 	}
 	TArray<FProcMeshTangent> NoTangents;
 	if (bUv1) { TArray<FVector2D> Empty; Target->CreateMeshSection(SectionIndex, V, Idx, N, UV, UV1, Empty, Empty, C, NoTangents, bCollision); }
