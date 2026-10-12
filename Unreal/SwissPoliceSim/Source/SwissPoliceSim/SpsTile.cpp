@@ -104,8 +104,18 @@ void ASpsTile::SetTrees(const FSpsMeshData& Merged)
 void ASpsTile::BeginBuild(FSpsTileData&& Data, double OriginE, double OriginN)
 {
 	// Doppelpuffer: die bisherigen Teile (und ihre Kollision) bleiben, bis die neuen fertig und ihre Kollision gebacken ist
-	for (UProceduralMeshComponent* P : OldParts) { if (P) P->DestroyComponent(); }
-	OldParts = Parts; Parts.Reset(); OldDestroyIn = 1.0e9f;
+	if (bBuilding)
+	{
+		// Ein noch unfertiger (unsichtbarer) Aufbau wird verworfen; die sichtbaren alten Teile bleiben, sonst verschwinden Strassen/Gebaeude, bis der naechste Aufbau fertig ist
+		for (UProceduralMeshComponent* P : Parts) { if (P) P->DestroyComponent(); }
+		Parts.Reset();
+	}
+	else
+	{
+		for (UProceduralMeshComponent* P : OldParts) { if (P) P->DestroyComponent(); }
+		OldParts = Parts; Parts.Reset();
+	}
+	OldDestroyIn = 1.0e9f;
 	Staged = MoveTemp(Data); TileX = Staged.X; TileY = Staged.Y; Quality = Staged.Quality;
 	SetActorLocation(FVector((Staged.Y * 1000.0 - OriginN) * 100.0, (Staged.X * 1000.0 - OriginE) * 100.0, 0.0));
 	bBuilding = true; StageMesh = 0; StageSection = 0; StageComponent = nullptr;
@@ -158,6 +168,7 @@ bool ASpsTile::BuildStep()
 	}
 	bBuilding = false; Staged = FSpsTileData();
 	for (UProceduralMeshComponent* P : Parts) { if (P) P->SetVisibility(true); }
+	for (UProceduralMeshComponent* P : OldParts) { if (P) P->SetVisibility(false); }   // alt und neu liegen deckungsgleich: nie beide zeichnen (Flackern), nur die Kollision der alten bleibt kurz bestehen
 	{
 		FString Info;
 		for (UProceduralMeshComponent* P : Parts)
