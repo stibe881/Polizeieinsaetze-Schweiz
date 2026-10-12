@@ -26,7 +26,8 @@ ASpsAtmosphere::ASpsAtmosphere()
 	Sky->SetupAttachment(Root);
 
 	SkyLight = CreateDefaultSubobject<USkyLightComponent>(TEXT("SkyLight"));
-	SkyLight->SetupAttachment(Root); SkyLight->SetMobility(EComponentMobility::Movable); SkyLight->bRealTimeCapture = false;   // Echtzeit-Capture kostet jedes Bild; stattdessen alle paar Sekunden (siehe Apply) SkyLight->SetIntensity(1.f); SkyLight->bLowerHemisphereIsBlack = false; SkyLight->SetLowerHemisphereColor(FLinearColor(0.25f, 0.25f, 0.25f));
+	SkyLight->SetupAttachment(Root); SkyLight->SetMobility(EComponentMobility::Movable); SkyLight->bRealTimeCapture = false;   // Echtzeit-Capture kostet jedes Bild; stattdessen alle paar Sekunden (siehe Apply)
+	SkyLight->SetIntensity(1.f); SkyLight->bLowerHemisphereIsBlack = false; SkyLight->SetLowerHemisphereColor(FLinearColor(0.25f, 0.25f, 0.25f));
 
 	Fog = CreateDefaultSubobject<UExponentialHeightFogComponent>(TEXT("Fog"));
 	Fog->SetupAttachment(Root); Fog->SetFogDensity(0.01f); Fog->SetVolumetricFog(true);

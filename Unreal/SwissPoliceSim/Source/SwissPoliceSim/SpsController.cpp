@@ -115,7 +115,15 @@ void ASpsController::OnEnterExit()
 	if (GetPawn() == Car)
 	{
 		Car->bOccupied = false; Car->SpeedMs = 0.f;
-		const FVector Out = Car->GetActorLocation() + Car->GetActorRightVector() * -260.f;
+		FVector Out = Car->GetActorLocation() + Car->GetActorRightVector() * -260.f;
+		{
+			// Kapselmitte muss ueber dem Boden liegen: Boden per Strahl suchen, sonst faellt der Spieler durch die Strasse
+			FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(SpsExit), false); Q.AddIgnoredActor(Car); Q.AddIgnoredActor(Foot);
+			const float HalfH = 100.f;
+			if (GetWorld()->LineTraceSingleByChannel(H, Out + FVector(0, 0, 300.f), Out - FVector(0, 0, 400.f), ECC_Visibility, Q)) Out.Z = H.ImpactPoint.Z + HalfH + 10.f;
+			else Out.Z = Car->GetActorLocation().Z + HalfH + 40.f;
+			UE_LOG(LogTemp, Log, TEXT("[SPS] Aussteigen bei Z=%.0f (Auto Z=%.0f)"), Out.Z, Car->GetActorLocation().Z);
+		}
 		Foot->SetActorHiddenInGame(false); Foot->SetActorEnableCollision(true); Foot->SetActorLocationAndRotation(Out, FRotator(0, Car->GetActorRotation().Yaw, 0));
 		Possess(Foot);
 	}
