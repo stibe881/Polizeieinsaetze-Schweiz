@@ -12,6 +12,8 @@ namespace SwissPoliceSim.Core.Meshing
     public static class TerrainMesher
     {
         public const float SkirtDepth = 5f;
+        /// <summary>Das Terrain liegt 0.3 m unter dem Hoehenraster, damit Strassen/Trottoirs (nur 0.1 m darueber, aber auf der Mittellinienhoehe) nie vom Gelaendedreieck verdeckt werden.</summary>
+        public const float RoadClearance = 0.3f;
 
         struct Style { public byte R, G, B; public float Rock, Paved; public Style(byte r, byte g, byte b, float rock, float paved) { R = r; G = g; B = b; Rock = rock; Paved = paved; } }
 
@@ -50,7 +52,7 @@ namespace SwissPoliceSim.Core.Meshing
                 for (int i = 0; i < n; i++)
                 {
                     int c = Math.Min(res - 1, i * stride), r = Math.Min(res - 1, j * stride);
-                    float x = c * d.Spacing, z = r * d.Spacing, y = d.Height(c, r);
+                    float x = c * d.Spacing, z = r * d.Spacing, y = d.Height(c, r) - RoadClearance;
                     float hx = d.Height(Math.Min(res - 1, c + 1), r) - d.Height(Math.Max(0, c - 1), r), hz = d.Height(c, Math.Min(res - 1, r + 1)) - d.Height(c, Math.Max(0, r - 1));
                     float nx = -hx, nz = -hz, ny = 2 * d.Spacing, l = (float)Math.Sqrt(nx * nx + ny * ny + nz * nz);
                     byte cls = 0;
