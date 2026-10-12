@@ -95,13 +95,13 @@ void ASpsTile::StartMesh(const FSpsTileMesh& TM)
 	const bool bNear = Staged.Quality == 1;
 	switch (TM.Kind)
 	{
-	case SpsTileKind::Terrain: StageComponent = NewPart(TEXT("Terrain"), true, bNear); break;
+	case SpsTileKind::Terrain: StageComponent = NewPart(TEXT("Terrain"), false, bNear); break;
 	case SpsTileKind::Roads: StageComponent = NewPart(TEXT("Roads"), false, bNear); break;
-	case SpsTileKind::BuildingsFar: StageComponent = NewPart(TEXT("BuildingsFar"), true, bNear); break;
-	case SpsTileKind::BuildingsDetail: StageComponent = NewPart(TEXT("BuildingsDetail"), true, bNear); break;
+	case SpsTileKind::BuildingsFar: StageComponent = NewPart(TEXT("BuildingsFar"), bNear, bNear); break;
+	case SpsTileKind::BuildingsDetail: StageComponent = NewPart(TEXT("BuildingsDetail"), bNear, bNear); break;
 	case SpsTileKind::Water: StageComponent = NewPart(TEXT("Water"), false, false); break;
-	case SpsTileKind::Furniture: StageComponent = NewPart(TEXT("Furniture"), true, false); break;
-	case SpsTileKind::Rail: StageComponent = NewPart(TEXT("Rail"), true, false); break;
+	case SpsTileKind::Furniture: StageComponent = NewPart(TEXT("Furniture"), bNear, false); break;
+	case SpsTileKind::Rail: StageComponent = NewPart(TEXT("Rail"), false, false); break;
 	default: StageComponent = nullptr; break;
 	}
 	if (StageComponent) { StageComponent->SetVisibility(false); Parts.Add(StageComponent); }   // erst sichtbar, wenn der ganze Tile fertig ist

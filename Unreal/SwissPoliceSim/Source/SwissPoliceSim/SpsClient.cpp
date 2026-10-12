@@ -74,6 +74,13 @@ void ASpsClient::BeginPlay()
 		GEngine->Exec(GetWorld(), TEXT("r.DynamicGlobalIlluminationMethod 0"));
 		GEngine->Exec(GetWorld(), TEXT("r.ReflectionMethod 2"));
 		GEngine->Exec(GetWorld(), TEXT("r.AmbientOcclusionStaticFraction 1"));
+		// Leistung: Die Welt besteht aus grossen Procedural-Meshes ohne LOD; teure Effekte reduzieren
+		GEngine->Exec(GetWorld(), TEXT("r.VolumetricFog 0"));
+		GEngine->Exec(GetWorld(), TEXT("r.ScreenPercentage 80"));
+		GEngine->Exec(GetWorld(), TEXT("r.Shadow.Virtual.ResolutionLodBiasDirectional 1"));
+		GEngine->Exec(GetWorld(), TEXT("r.Shadow.Virtual.MaxPhysicalPages 2048"));
+		GEngine->Exec(GetWorld(), TEXT("r.MotionBlurQuality 0"));
+		GEngine->Exec(GetWorld(), TEXT("r.DistanceFieldAO 0"));
 	}
 	Atmosphere = GetWorld()->SpawnActor<ASpsAtmosphere>(FVector::ZeroVector, FRotator::ZeroRotator);
 	Weather = GetWorld()->SpawnActor<ASpsWeather>(FVector::ZeroVector, FRotator::ZeroRotator);

@@ -31,5 +31,5 @@ private:
 	UPROPERTY() TObjectPtr<UExponentialHeightFogComponent> Fog;
 	UPROPERTY() TObjectPtr<UVolumetricCloudComponent> Clouds;
 	UPROPERTY() TObjectPtr<UPostProcessComponent> Post;
-	float LastCapture = 0.f; float LastLog = 0.f;
+	float LastCapture = 8.f; float LastLog = 0.f;
 };
