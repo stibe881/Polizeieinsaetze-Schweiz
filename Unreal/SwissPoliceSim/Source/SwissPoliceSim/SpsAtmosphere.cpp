@@ -20,6 +20,7 @@ ASpsAtmosphere::ASpsAtmosphere()
 	Fill = CreateDefaultSubobject<UDirectionalLightComponent>(TEXT("Fill"));
 	Fill->SetupAttachment(Root); Fill->SetMobility(EComponentMobility::Movable); Fill->SetIntensity(2.5f); Fill->SetCastShadows(false); Fill->SetLightColor(FLinearColor(0.75f, 0.82f, 1.f));
 	Fill->SetWorldRotation(FRotator(-60.f, 35.f, 0.f));
+	Fill->ForwardShadingPriority = 0; Sun->ForwardShadingPriority = 1;   // beseitigt die Warnung "mehrere gerichtete Lichter konkurrieren"
 
 	Sky = CreateDefaultSubobject<USkyAtmosphereComponent>(TEXT("SkyAtmosphere"));
 	Sky->SetupAttachment(Root);

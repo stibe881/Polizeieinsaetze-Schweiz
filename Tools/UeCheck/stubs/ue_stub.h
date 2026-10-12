@@ -219,7 +219,7 @@ struct USpringArmComponent : USceneComponent
 	static FName SocketName; float TargetArmLength = 0, CameraLagSpeed = 0, ProbeSize = 0; bool bUsePawnControlRotation = false, bDoCollisionTest = false, bInheritPitch = true, bInheritRoll = true, bInheritYaw = true, bEnableCameraLag = false;
 };
 inline FName USpringArmComponent::SocketName;
-struct UDirectionalLightComponent : USceneComponent { float Intensity = 0.f; void SetLightColor(FLinearColor, bool = true) {} void SetAtmosphereSunLight(bool) {} void SetAtmosphereSunLightIndex(int32) {} void SetIntensity(float) {} void SetLightSourceAngle(float) {} void SetCastShadows(bool) {} };
+struct UDirectionalLightComponent : USceneComponent { int32 ForwardShadingPriority = 0; float Intensity = 0.f; void SetLightColor(FLinearColor, bool = true) {} void SetAtmosphereSunLight(bool) {} void SetAtmosphereSunLightIndex(int32) {} void SetIntensity(float) {} void SetLightSourceAngle(float) {} void SetCastShadows(bool) {} };
 struct USkyAtmosphereComponent : USceneComponent {};
 struct USkyLightComponent : USceneComponent { float Intensity = 0.f; bool bLowerHemisphereIsBlack = true; void SetLowerHemisphereColor(const FLinearColor&) {} bool bRealTimeCapture = false; void SetIntensity(float) {} void RecaptureSky() {} };
 struct UExponentialHeightFogComponent : USceneComponent { void SetFogDensity(float) {} void SetVolumetricFog(bool) {} void SetFogInscatteringColor(FLinearColor) {} };
