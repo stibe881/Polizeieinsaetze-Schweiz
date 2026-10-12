@@ -181,9 +181,10 @@ struct EEndPlayReason { enum Type { Destroyed }; };
 struct FActorTick { bool bCanEverTick = false; bool bStartWithTickEnabled = true; };
 struct UMaterialInterface : UObject {};
 struct UMaterialInstanceDynamic : UMaterialInterface { static UMaterialInstanceDynamic* Create(UMaterialInterface*, UObject*) { return nullptr; } void SetScalarParameterValue(FName, float) {} };
+struct FBoxSphereBounds { float SphereRadius = 0; FVector BoxExtent; };
 struct USceneComponent : UObject
 {
-	void SetupAttachment(USceneComponent*, FName = FName()) {} void SetRelativeLocation(const FVector&) {} void SetRelativeRotation(const FRotator&) {} void SetWorldRotation(const FRotator&) {}
+	FBoxSphereBounds Bounds; void SetupAttachment(USceneComponent*, FName = FName()) {} void SetRelativeLocation(const FVector&) {} void SetRelativeRotation(const FRotator&) {} void SetWorldRotation(const FRotator&) {}
 	void RegisterComponent() {} void DestroyComponent() {} void SetMobility(EComponentMobility) {} void SetVisibility(bool, bool = false) {} void SetRelativeScale3D(const FVector&) {}
 };
 struct FProcMeshTangent {};

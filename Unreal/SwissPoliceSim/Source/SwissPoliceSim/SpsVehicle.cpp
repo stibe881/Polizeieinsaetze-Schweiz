@@ -124,6 +124,14 @@ bool FSpsCarVisual::ApplyOverride(AActor* Owner, USceneComponent* Root, const FS
 	else { UE_LOG(LogTemp, Warning, TEXT("[SPS] Fahrzeug-Asset ist weder Static noch Skeletal Mesh: %s"), *O->Mesh); return false; }
 	C->SetupAttachment(Root); C->SetRelativeLocation(O->Offset); C->SetRelativeRotation(FRotator(0.f, O->Yaw, 0.f)); C->SetRelativeScale3D(FVector(O->Scale, O->Scale, O->Scale));
 	C->RegisterComponent();
+	const FBoxSphereBounds B = C->Bounds;
+	UE_LOG(LogTemp, Log, TEXT("[SPS] Fahrzeug-Override %s: Radius %.0f cm, Ausdehnung %s"), *ModelKey, B.SphereRadius, *B.BoxExtent.ToString());
+	if (B.SphereRadius < 100.f || B.SphereRadius > 1500.f)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[SPS] Fahrzeug-Override %s unplausibel, nutze prozedurales Auto"), *ModelKey);
+		C->DestroyComponent();
+		return false;
+	}
 	for (USceneComponent* P : ProceduralParts) { if (P) P->SetVisibility(false, true); }
 	return true;
 }

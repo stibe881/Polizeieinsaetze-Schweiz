@@ -15,7 +15,12 @@ namespace
 UMaterialInterface* SPSMaterials::Get(const FString& Slot)
 {
 	if (TWeakObjectPtr<UMaterialInterface>* Hit = GCache.Find(Slot)) { if (Hit->IsValid()) return Hit->Get(); }
-	UMaterialInterface* M = Load(FString::Printf(TEXT("/Game/SPS/Materials/MI_%s.MI_%s"), *Slot, *Slot));
+	// Boden (Terrain, Strassen, Trottoir, Markierungen): matt, rein ueber Vertexfarben - die PBR-Texturen wirkten bleich/spiegelnd
+	static const TCHAR* Flat[] = { TEXT("Terrain"), TEXT("Road0"), TEXT("Road1"), TEXT("Road2"), TEXT("Sidewalk"), TEXT("MarkWhite"), TEXT("MarkYellow") };
+	bool bFlat = false;
+	for (const TCHAR* F : Flat) { if (Slot == F) { bFlat = true; break; } }
+	UMaterialInterface* M = bFlat ? Load(TEXT("/Game/SPS/Materials/MI_Prop.MI_Prop")) : nullptr;
+	if (!M) M = Load(FString::Printf(TEXT("/Game/SPS/Materials/MI_%s.MI_%s"), *Slot, *Slot));
 	if (!M) M = Load(TEXT("/Game/SPS/Materials/M_Sps_VertexColor.M_Sps_VertexColor"));
 	if (!M) M = Load(TEXT("/Engine/EngineMaterials/WorldGridMaterial.WorldGridMaterial"));
 	GCache.Add(Slot, M);
