@@ -15,6 +15,7 @@ class ASpsTile : public AActor
 
 public:
 	ASpsTile();
+	virtual void Tick(float Dt) override;
 
 	int32 TileX = 0, TileY = 0;
 	uint8 Quality = 3;
@@ -37,6 +38,8 @@ private:
 	FSpsTileData Staged; bool bBuilding = false; int32 StageMesh = 0, StageSection = 0; UProceduralMeshComponent* StageComponent = nullptr;
 	void StartMesh(const FSpsTileMesh& TM);
 	UPROPERTY() TArray<TObjectPtr<UProceduralMeshComponent>> Parts;
+	UPROPERTY() TArray<TObjectPtr<UProceduralMeshComponent>> OldParts;   // bleiben samt Kollision stehen, bis die neuen Teile fertig sind (sonst faellt man waehrend des Neuaufbaus durch den Boden)
+	float OldDestroyIn = 0.f;
 	UPROPERTY() TObjectPtr<UProceduralMeshComponent> TreePart;
 	UProceduralMeshComponent* NewPart(const FString& Name, bool bShadow, bool bCollision);
 	void FillMesh(UProceduralMeshComponent* P, const FSpsMeshData& M, TFunctionRef<FString(int32)> Slot, bool bCollision);

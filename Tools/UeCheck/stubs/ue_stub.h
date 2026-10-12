@@ -109,6 +109,7 @@ struct FVector2D { double X = 0, Y = 0; FVector2D() {} FVector2D(double x, doubl
 struct FRotator;
 struct FVector
 {
+	bool IsZero() const { return X == 0 && Y == 0 && Z == 0; }
 	double X = 0, Y = 0, Z = 0; static const FVector ZeroVector;
 	FVector() {} FVector(double x, double y, double z) : X(x), Y(y), Z(z) {}
 	FVector operator+(const FVector& o) const { return { X + o.X, Y + o.Y, Z + o.Z }; } FVector operator-(const FVector& o) const { return { X - o.X, Y - o.Y, Z - o.Z }; } FVector operator-() const { return { -X, -Y, -Z }; }
@@ -177,7 +178,7 @@ struct UObjectNamed { FString GetName() const { return FString(); } };
 struct FHitResult { bool bBlockingHit = false; FVector ImpactPoint; FVector ImpactNormal; float Distance = 0; AActor* GetActor() const { return nullptr; } UObjectNamed* GetComponent() const { return nullptr; } };
 enum class ECollisionEnabled { NoCollision, QueryAndPhysics }; enum class EComponentMobility { Movable };
 struct EEndPlayReason { enum Type { Destroyed }; };
-struct FActorTick { bool bCanEverTick = false; };
+struct FActorTick { bool bCanEverTick = false; bool bStartWithTickEnabled = true; };
 struct UMaterialInterface : UObject {};
 struct UMaterialInstanceDynamic : UMaterialInterface { static UMaterialInstanceDynamic* Create(UMaterialInterface*, UObject*) { return nullptr; } void SetScalarParameterValue(FName, float) {} };
 struct USceneComponent : UObject
@@ -255,7 +256,7 @@ struct AActor : UObject
 template <class T> T* NewObject(UObject*, const wchar_t*) { return new T(); } template <class T> T* NewObject(UObject*, const FString&) { return new T(); } template <class T> T* NewObject(UObject*, FName) { return new T(); }
 template <class T, class U> T* Cast(U* u) { return dynamic_cast<T*>(u); }
 struct AController : AActor { FRotator GetControlRotation() const { return FRotator(); } };
-struct UCharacterMovementComponent : USceneComponent { float MaxWalkSpeed = 0, JumpZVelocity = 0; bool bOrientRotationToMovement = false; FRotator RotationRate; void SetMovementMode(int) {} };
+struct UCharacterMovementComponent : USceneComponent { bool IsMovingOnGround() const { return true; } FVector Velocity; float MaxWalkSpeed = 0, JumpZVelocity = 0; bool bOrientRotationToMovement = false; FRotator RotationRate; void SetMovementMode(int) {} };
 enum { MOVE_Walking, MOVE_Flying };
 struct APawn : AActor { AController* Controller = nullptr; EAutoReceiveInput AutoPossessPlayer = EAutoReceiveInput::Disabled; void AddMovementInput(const FVector&, float) {} };
 struct ACharacter : APawn { UCapsuleComponent* GetCapsuleComponent() const { return nullptr; } UCharacterMovementComponent* GetCharacterMovement() const { return nullptr; } void Jump() {} bool bUseControllerRotationYaw = false; };

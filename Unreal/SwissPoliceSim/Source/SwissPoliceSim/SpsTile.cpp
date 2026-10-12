@@ -4,7 +4,7 @@
 
 ASpsTile::ASpsTile()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true; PrimaryActorTick.bStartWithTickEnabled = false;
 	USceneComponent* Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	SetRootComponent(Root);
 }
@@ -31,8 +31,18 @@ void ASpsTile::FillMesh(UProceduralMeshComponent* P, const FSpsMeshData& M, TFun
 	}
 }
 
+void ASpsTile::Tick(float Dt)
+{
+	Super::Tick(Dt);
+	if (OldDestroyIn > 0.f) { OldDestroyIn -= Dt; return; }
+	for (UProceduralMeshComponent* P : OldParts) { if (P) P->DestroyComponent(); }
+	OldParts.Reset(); SetActorTickEnabled(false);
+}
+
 void ASpsTile::Clear()
 {
+	for (UProceduralMeshComponent* P : OldParts) { if (P) P->DestroyComponent(); }
+	OldParts.Reset();
 	for (UProceduralMeshComponent* P : Parts) { if (P) P->DestroyComponent(); }
 	Parts.Reset();
 	if (TreePart) { TreePart->DestroyComponent(); TreePart = nullptr; }
@@ -72,7 +82,9 @@ void ASpsTile::SetTrees(const FSpsMeshData& Merged)
 
 void ASpsTile::BeginBuild(FSpsTileData&& Data, double OriginE, double OriginN)
 {
-	Clear();
+	// Doppelpuffer: die bisherigen Teile (und ihre Kollision) bleiben, bis die neuen fertig und ihre Kollision gebacken ist
+	for (UProceduralMeshComponent* P : OldParts) { if (P) P->DestroyComponent(); }
+	OldParts = Parts; Parts.Reset(); OldDestroyIn = 1.0e9f;
 	Staged = MoveTemp(Data); TileX = Staged.X; TileY = Staged.Y; Quality = Staged.Quality;
 	SetActorLocation(FVector((Staged.Y * 1000.0 - OriginN) * 100.0, (Staged.X * 1000.0 - OriginE) * 100.0, 0.0));
 	bBuilding = true; StageMesh = 0; StageSection = 0; StageComponent = nullptr;
@@ -92,7 +104,7 @@ void ASpsTile::StartMesh(const FSpsTileMesh& TM)
 	case SpsTileKind::Rail: StageComponent = NewPart(TEXT("Rail"), true, false); break;
 	default: StageComponent = nullptr; break;
 	}
-	if (StageComponent) Parts.Add(StageComponent);
+	if (StageComponent) { StageComponent->SetVisibility(false); Parts.Add(StageComponent); }   // erst sichtbar, wenn der ganze Tile fertig ist
 }
 
 bool ASpsTile::BuildStep()
@@ -123,5 +135,7 @@ bool ASpsTile::BuildStep()
 		return false;   // one section per call
 	}
 	bBuilding = false; Staged = FSpsTileData();
+	for (UProceduralMeshComponent* P : Parts) { if (P) P->SetVisibility(true); }
+	if (OldParts.Num() > 0) { OldDestroyIn = 3.f; SetActorTickEnabled(true); }   // alte Teile erst nach 3 s entfernen (Zeit fuer die asynchrone Kollisions-Berechnung)
 	return true;
 }

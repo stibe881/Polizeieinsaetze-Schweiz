@@ -80,7 +80,7 @@ private:
 	TObjectPtr<ASpsWeather> Weather;
 	void MaybeRebase();
 	float ReconnectIn = -1.f;
-	float StatusTimer = 0.f;
+	float StatusTimer = 0.f; FVector LastSafeFoot = FVector::ZeroVector;
 	TArray<uint8> ChunkBuffer;   // Zwischenspeicher fuer in Chunks gesendete Grossframes
 	float PoseTimer = 0.f; double StartE = 0, StartN = 0, StartH = 0, StartVE = 0, StartVN = 0, StartVYaw = 0; bool bPlacePending = false; double PlaceSince = 0.0, PlaceLogAt = 0.0; bool bStartInVehicle = false; float StartYaw = 0.f;
 

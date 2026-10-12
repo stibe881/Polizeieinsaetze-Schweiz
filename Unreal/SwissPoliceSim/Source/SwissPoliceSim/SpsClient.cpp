@@ -428,6 +428,13 @@ void ASpsClient::Tick(float Dt)
 	TArray<TArray<uint8>> Bins = MoveTemp(BinaryQueue); BinaryQueue.Reset();
 	for (const TArray<uint8>& B : Bins) HandleBinary(B);
 	MaybeRebase(); ProcessTiles(0.006); ProcessTrees(); ProcessSpawns(); ProcessProps(); ApplySnapshot(); TryPlacePlayer();
+	// Sicherheitsnetz: faellt der Spieler aus der Welt (fehlende Kollision), zurueck zur letzten sicheren Stelle
+	if (PlayerFoot && bStarted && !bPlacePending && PlayerFoot->GetCharacterMovement()->IsMovingOnGround()) LastSafeFoot = PlayerFoot->GetActorLocation();
+	if (PlayerFoot && bStarted && !bPlacePending && !LastSafeFoot.IsZero() && PlayerFoot->GetActorLocation().Z < LastSafeFoot.Z - 6000.0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[SPS] Spieler ist durch den Boden gefallen - zurueck auf die letzte sichere Stelle"));
+		PlayerFoot->SetActorLocation(LastSafeFoot + FVector(0, 0, 150)); PlayerFoot->GetCharacterMovement()->Velocity = FVector::ZeroVector;
+	}
 	// Diagnose: alle 6 s Lage des Spielers und Anzahl Tiles (hilft bei "ich sehe nichts")
 	StatusTimer += Dt;
 	if (StatusTimer > 6.f && bStarted)
