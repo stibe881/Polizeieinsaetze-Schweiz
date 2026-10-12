@@ -10,6 +10,8 @@
 #include "SpsOverrides.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
+#include "Components/SkeletalMeshComponent.h"
 
 namespace
 {
@@ -105,11 +107,23 @@ bool FSpsCarVisual::ApplyOverride(AActor* Owner, USceneComponent* Root, const FS
 {
 	const FSpsCarOverride* O = SpsOverrides::FindCar(ModelKey);
 	if (!O) return false;
-	UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *O->Mesh);
-	if (!Mesh) return false;
-	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(Owner, TEXT("CustomMesh"));
-	C->SetupAttachment(Root); C->SetStaticMesh(Mesh); C->SetRelativeLocation(O->Offset); C->SetRelativeRotation(FRotator(0.f, O->Yaw, 0.f)); C->SetRelativeScale3D(FVector(O->Scale, O->Scale, O->Scale));
-	C->SetCollisionEnabled(ECollisionEnabled::NoCollision); C->SetCastShadow(true); C->RegisterComponent();
+	// Das Asset kann ein Static Mesh oder ein Skeletal Mesh sein (City-Sample-Fahrzeuge sind Skeletal Meshes mit Radknochen)
+	UObject* Asset = LoadObject<UObject>(nullptr, *O->Mesh);
+	if (!Asset) { UE_LOG(LogTemp, Warning, TEXT("[SPS] Fahrzeug-Mesh nicht gefunden: %s"), *O->Mesh); return false; }
+	USceneComponent* C = nullptr;
+	if (UStaticMesh* SM = Cast<UStaticMesh>(Asset))
+	{
+		UStaticMeshComponent* Sc = NewObject<UStaticMeshComponent>(Owner, TEXT("CustomMesh")); Sc->SetStaticMesh(SM);
+		Sc->SetCollisionEnabled(ECollisionEnabled::NoCollision); Sc->SetCastShadow(true); C = Sc;
+	}
+	else if (USkeletalMesh* SK = Cast<USkeletalMesh>(Asset))
+	{
+		USkeletalMeshComponent* Sc = NewObject<USkeletalMeshComponent>(Owner, TEXT("CustomSkeletal")); Sc->SetSkeletalMesh(SK);
+		Sc->SetCollisionEnabled(ECollisionEnabled::NoCollision); Sc->SetCastShadow(true); C = Sc;
+	}
+	else { UE_LOG(LogTemp, Warning, TEXT("[SPS] Fahrzeug-Asset ist weder Static noch Skeletal Mesh: %s"), *O->Mesh); return false; }
+	C->SetupAttachment(Root); C->SetRelativeLocation(O->Offset); C->SetRelativeRotation(FRotator(0.f, O->Yaw, 0.f)); C->SetRelativeScale3D(FVector(O->Scale, O->Scale, O->Scale));
+	C->RegisterComponent();
 	for (USceneComponent* P : ProceduralParts) { if (P) P->SetVisibility(false, true); }
 	return true;
 }

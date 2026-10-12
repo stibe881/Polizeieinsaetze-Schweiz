@@ -169,7 +169,7 @@ template <class... A> struct TMulticastDelegate
 #define DECLARE_MULTICAST_DELEGATE_OneParam(Name, P) typedef TMulticastDelegate<P> Name;
 
 // ---------------------------------------------------------------- engine core
-struct UClass; struct UObject { UClass* GetClass() const; }; struct UClass_Stub {};
+struct UClass; struct UObject { virtual ~UObject() {} UClass* GetClass() const; }; struct UClass_Stub {};
 struct UInputComponent;
 struct UWorld; struct AActor; struct UPrimitiveComponent; struct APlayerController; struct AController;
 struct FCollisionQueryParams { FCollisionQueryParams(FName, bool, const AActor* = nullptr) {} void AddIgnoredActor(const AActor*) {} };
@@ -203,7 +203,7 @@ struct FFloatProperty { void SetPropertyValue_InContainer(void*, float) {} }; st
 template <class T> T* FindFProperty(UClass*, const TCHAR*) { return nullptr; }
 template <class T> UClass* LoadClass(UObject*, const TCHAR*) { return nullptr; }
 struct UStaticMeshComponent : USceneComponent { void SetStaticMesh(UStaticMesh*) {} void SetCollisionEnabled(ECollisionEnabled) {} void SetCastShadow(bool) {} void SetRelativeScale3D(const FVector&) {} };
-struct USkeletalMeshComponent : USceneComponent { UAnimInstance* GetAnimInstance() const { return nullptr; } void SetAnimInstanceClass(UClass*) {} void SetSkeletalMesh(USkeletalMesh*) {} void SetAnimationMode(EAnimationMode) {} void PlayAnimation(UAnimationAsset*, bool) {} void SetPlayRate(float) {} void SetCollisionEnabled(ECollisionEnabled) {} void SetRelativeScale3D(const FVector&) {} };
+struct USkeletalMeshComponent : USceneComponent { void SetCastShadow(bool) {} void SetCollisionEnabled(int) {} UAnimInstance* GetAnimInstance() const { return nullptr; } void SetAnimInstanceClass(UClass*) {} void SetSkeletalMesh(USkeletalMesh*) {} void SetAnimationMode(EAnimationMode) {} void PlayAnimation(UAnimationAsset*, bool) {} void SetPlayRate(float) {} void SetCollisionEnabled(ECollisionEnabled) {} void SetRelativeScale3D(const FVector&) {} };
 enum class ETeleportType { None, TeleportPhysics };
 struct FTransform { FTransform() {} FTransform(const FRotator&, const FVector&, const FVector& = FVector()) {} };
 struct UInstancedStaticMeshComponent : USceneComponent { void SetStaticMesh(UStaticMesh*) {} void SetCastShadow(bool) {} void SetCollisionEnabled(ECollisionEnabled) {} int32 AddInstance(const FTransform&) { return 0; } int32 GetInstanceCount() const { return 0; } bool BatchUpdateInstancesTransforms(int32, const TArray<FTransform>&, bool, bool, bool) { return true; } void SetMaterial(int32, UMaterialInterface*) {} };
