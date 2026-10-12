@@ -71,7 +71,7 @@ namespace SwissPoliceSim.Core.Meshing
             t.RoadMesh = rm;
             t.FurnitureMesh = FurnitureMesher.Build(t.Points, t.Roads, te, tn, ground);
 
-            var rl = RailMesher.NewMesh(); foreach (var r in t.Rails) RailMesher.AddRail(rl, r, te, tn, ground, detail); t.RailMesh = rl;
+            var rl = RailMesher.NewMesh(); foreach (var r in t.Rails) RailMesher.AddRail(rl, r, te, tn, ground, detail, double.IsNaN(detailE) ? float.NaN : (float)(detailE - te), double.IsNaN(detailN) ? float.NaN : (float)(detailN - tn), detailRadius > 0 ? (float)detailRadius : 0f); t.RailMesh = rl;
 
             var bm = BuildingMesher.NewMesh();
             foreach (var b in t.Buildings)

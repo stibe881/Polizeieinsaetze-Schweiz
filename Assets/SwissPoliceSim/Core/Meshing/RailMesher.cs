@@ -10,7 +10,7 @@ namespace SwissPoliceSim.Core.Meshing
         public const int Ballast = 0, Rails = 1, Sleepers = 2, Masts = 3, Submeshes = 4;
         public static MeshData NewMesh() => new MeshData(Submeshes);
 
-        public static void AddRail(MeshData m, RailFeature r, double tE, double tN, Func<double, double, float> ground, bool detail)
+        public static void AddRail(MeshData m, RailFeature r, double tE, double tN, Func<double, double, float> ground, bool detail, float cx = float.NaN, float cz = float.NaN, float rad = 0f)
         {
             int n = r.E.Length; if (n < 2 || r.Tunnel) return;
             var px = new float[n]; var pz = new float[n]; var py = new float[n];
@@ -48,6 +48,9 @@ namespace SwissPoliceSim.Core.Meshing
                 {
                     if (!detail) break;
                     float t = s / len, x = px[i] + dx * t, z = pz[i] + dz * t, y = py[i] + (py[i + 1] - py[i]) * t;
+                    nextSleeper = acc + s + 0.65f;
+                    // Schwellen nur nahe beim Spieler: ein Bahnhof hat zehntausende, das ergab 50-MB-Kacheln
+                    if (rad > 0f && !float.IsNaN(cx) && ((x - cx) * (x - cx) + (z - cz) * (z - cz)) > rad * rad) continue;
                     MeshUtil.Box(m, Sleepers, x, y + 0.075f, z, 2.6f, 0.15f, 0.26f, 120, 118, 114, (float)Math.Atan2(-ux, -uz));
                     nextSleeper = acc + s + 0.65f;
                 }
