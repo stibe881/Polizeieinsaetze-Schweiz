@@ -34,6 +34,9 @@ public:
 	/** Debug: Teile, deren Name Filter enthaelt (Terrain, Roads, BuildingsFar, Water, Trees ...), ein-/ausblenden. Gibt die Anzahl betroffener Teile zurueck. */
 	int32 SetKindVisible(const FString& Filter, bool bVisible);
 
+	/** Debug-Text ueber alle Teile (Sichtbarkeit, Grenzen, Kollision, Material). */
+	FString Describe() const;
+
 	/** Removes everything (used before a quality upgrade or when the tile leaves the keep range). */
 	void Clear();
 

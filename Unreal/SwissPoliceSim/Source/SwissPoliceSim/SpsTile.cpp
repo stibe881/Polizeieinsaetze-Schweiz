@@ -40,6 +40,18 @@ void ASpsTile::Tick(float Dt)
 	OldParts.Reset(); SetActorTickEnabled(false);
 }
 
+FString ASpsTile::Describe() const
+{
+	FString Out = FString::Printf(TEXT("Tile %d/%d q%d bBuilding=%d Parts=%d OldParts=%d"), TileX, TileY, Quality, bBuilding ? 1 : 0, Parts.Num(), OldParts.Num());
+	for (UProceduralMeshComponent* P : Parts)
+	{
+		if (!P) { Out += TEXT(" [null]"); continue; }
+		UMaterialInterface* M = P->GetNumMaterials() > 0 ? P->GetMaterial(0) : nullptr;
+		Out += FString::Printf(TEXT(" [%s vis=%d reg=%d sek=%d koll=%d mat=%s Z %.0f..%.0f]"), *P->GetName(), P->IsVisible() ? 1 : 0, P->IsRegistered() ? 1 : 0, P->GetNumSections(), P->GetCollisionEnabled() != ECollisionEnabled::NoCollision ? 1 : 0, M ? *M->GetName() : TEXT("-"), P->Bounds.Origin.Z - P->Bounds.BoxExtent.Z, P->Bounds.Origin.Z + P->Bounds.BoxExtent.Z);
+	}
+	return Out;
+}
+
 int32 ASpsTile::SetKindVisible(const FString& Filter, bool bVisible)
 {
 	int32 N = 0;

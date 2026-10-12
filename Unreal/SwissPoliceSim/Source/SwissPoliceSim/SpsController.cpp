@@ -208,3 +208,18 @@ void ASpsController::SpsShow(const FString& Kind)
 	int32 N = 0; for (TActorIterator<ASpsTile> It(GetWorld()); It; ++It) N += It->SetKindVisible(Kind, true);
 	UE_LOG(LogTemp, Log, TEXT("[SPS] %d Teile '%s' eingeblendet"), N, *Kind);
 }
+
+void ASpsController::SpsInfo()
+{
+	const FVector Cam = PlayerCameraManager ? PlayerCameraManager->GetCameraLocation() : FVector::ZeroVector;
+	const FVector Pawn = GetPawn() ? GetPawn()->GetActorLocation() : FVector::ZeroVector;
+	UE_LOG(LogTemp, Warning, TEXT("[SPS] Info: Pawn (%.0f, %.0f, %.0f) Kamera (%.0f, %.0f, %.0f)"), Pawn.X, Pawn.Y, Pawn.Z, Cam.X, Cam.Y, Cam.Z);
+	FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(SpsInfo), true, GetPawn());
+	if (GetWorld()->LineTraceSingleByChannel(H, Pawn + FVector(0, 0, 300.f), Pawn - FVector(0, 0, 3000.f), ECC_Visibility, Q)) { auto* C = H.GetComponent(); UE_LOG(LogTemp, Warning, TEXT("[SPS] Info: Boden-Treffer bei Z=%.0f auf %s"), H.ImpactPoint.Z, C ? *C->GetName() : TEXT("?")); }
+	else UE_LOG(LogTemp, Warning, TEXT("[SPS] Info: kein Boden-Treffer unter dem Spieler"));
+	for (TActorIterator<ASpsTile> It(GetWorld()); It; ++It)
+	{
+		const FVector D = Pawn - It->GetActorLocation();
+		if (D.X >= -100.0 && D.X <= 100100.0 && D.Y >= -100.0 && D.Y <= 100100.0) UE_LOG(LogTemp, Warning, TEXT("[SPS] Info: %s"), *It->Describe());
+	}
+}

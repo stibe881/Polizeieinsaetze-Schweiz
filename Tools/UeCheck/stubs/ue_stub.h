@@ -194,7 +194,7 @@ struct UProceduralMeshComponent : USceneComponent
 	bool bUseAsyncCooking = false, bUseComplexAsSimpleCollision = false;
 	void CreateMeshSection(int32, const TArray<FVector>&, const TArray<int32>&, const TArray<FVector>&, const TArray<FVector2D>&, const TArray<FColor>&, const TArray<FProcMeshTangent>&, bool) {}
 	void CreateMeshSection(int32, const TArray<FVector>&, const TArray<int32>&, const TArray<FVector>&, const TArray<FVector2D>&, const TArray<FVector2D>&, const TArray<FVector2D>&, const TArray<FVector2D>&, const TArray<FColor>&, const TArray<FProcMeshTangent>&, bool) {}
-	void SetMaterial(int32, UMaterialInterface*) {} UMaterialInterface* GetMaterial(int32) const { return nullptr; } int32 GetNumMaterials() const { return 0; } int32 GetNumSections() const { return 0; }
+	void SetMaterial(int32, UMaterialInterface*) {} UMaterialInterface* GetMaterial(int32) const { return nullptr; } int32 GetNumMaterials() const { return 0; } bool IsVisible() const { return true; } bool IsRegistered() const { return true; } ECollisionEnabled GetCollisionEnabled() const { return ECollisionEnabled::NoCollision; } int32 GetNumSections() const { return 0; }
 	void SetCastShadow(bool) {} void SetCollisionEnabled(ECollisionEnabled) {} void SetCollisionProfileName(FName) {} void SetCanEverAffectNavigation(bool) {}
 };
 struct UStaticMesh : UObject {}; struct USkeletalMesh : UObject {}; struct UAnimationAsset : UObject {};

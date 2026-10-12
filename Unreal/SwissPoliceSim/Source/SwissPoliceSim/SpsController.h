@@ -25,6 +25,8 @@ public:
 	/** Konsole: "SpsHide Water" / "SpsShow Water" blendet Tile-Teile (Terrain, Roads, BuildingsFar, BuildingsDetail, Water, Furniture, Rail, Trees) aus/ein - zur Fehlersuche. */
 	UFUNCTION(Exec) void SpsHide(const FString& Kind);
 	UFUNCTION(Exec) void SpsShow(const FString& Kind);
+	/** Konsole: "SpsInfo" schreibt Position, Kamera und den Zustand der Kachel unter dem Spieler ins Log. */
+	UFUNCTION(Exec) void SpsInfo();
 
 private:
 	TSharedPtr<SWebBrowser> Browser;
