@@ -96,10 +96,6 @@ void ASpsPlayerCar::Init(const FSpsModelData& Model, const FString& Plate)
 void ASpsPlayerCar::SetupPlayerInputComponent(UInputComponent* Input)
 {
 	Super::SetupPlayerInputComponent(Input);
-	Input->BindAxisKey(EKeys::W, this, &ASpsPlayerCar::InThrottle);
-	Input->BindAxisKey(EKeys::S, this, &ASpsPlayerCar::InBrake);
-	Input->BindAxisKey(EKeys::A, this, &ASpsPlayerCar::InLeft);
-	Input->BindAxisKey(EKeys::D, this, &ASpsPlayerCar::InRight);
 	Input->BindKey(EKeys::SpaceBar, IE_Pressed, this, &ASpsPlayerCar::HandbrakeOn);
 	Input->BindKey(EKeys::SpaceBar, IE_Released, this, &ASpsPlayerCar::HandbrakeOff);
 	Input->BindKey(EKeys::B, IE_Pressed, this, &ASpsPlayerCar::ToggleBlue);
@@ -129,6 +125,8 @@ bool ASpsPlayerCar::TraceGround(const FVector& At, float& OutZ) const
 	FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(SpsGround), true, this);
 	const FVector From = At + FVector(0, 0, 400.f), To = At - FVector(0, 0, 4000.f);
 	if (GetWorld()->LineTraceSingleByChannel(H, From, To, ECC_Visibility, Q)) { OutZ = H.ImpactPoint.Z; return true; }
+	// Auto ist bereits unter den Boden geraten: hoeher ansetzen und die Oberflaeche wiederfinden
+	if (GetWorld()->LineTraceSingleByChannel(H, At + FVector(0, 0, 4000.f), To, ECC_Visibility, Q)) { OutZ = H.ImpactPoint.Z; return true; }
 	return false;
 }
 
@@ -138,6 +136,12 @@ void ASpsPlayerCar::Tick(float Dt)
 	if (!bReady) return;
 	Dt = FMath::Min(Dt, 0.05f);
 	const double Now = GetWorld()->GetTimeSeconds();
+	// Tasten abfragen (BindAxisKey ist in UE 5.8 nur fuer Achsen erlaubt)
+	if (APlayerController* KPC = Cast<APlayerController>(Controller))
+	{
+		KeyThrottle = KPC->IsInputKeyDown(EKeys::W) ? 1.f : 0.f; KeyBrake = KPC->IsInputKeyDown(EKeys::S) ? 1.f : 0.f;
+		KeyLeft = KPC->IsInputKeyDown(EKeys::A) ? 1.f : 0.f; KeyRight = KPC->IsInputKeyDown(EKeys::D) ? 1.f : 0.f;
+	}
 	// ---- driving model (m/s, degrees)
 	const float Throttle = bOccupied ? KeyThrottle : 0.f, Brake = bOccupied ? KeyBrake : 0.f, Steer = bOccupied ? (KeyRight - KeyLeft) : 0.f, Hand = bOccupied ? KeyHandbrake : 1.f;
 	const float MaxV = 58.f;   // 210 km/h

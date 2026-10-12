@@ -19,25 +19,25 @@ namespace SwissPoliceSim.Core.Meshing
         {
             switch ((LandUseClass)cls)
             {
-                case LandUseClass.Forest: return new Style(120, 138, 100, 0, 0);
-                case LandUseClass.Farmland: return new Style(205, 180, 120, 0, 0);
-                case LandUseClass.Orchard: return new Style(160, 185, 110, 0, 0);
-                case LandUseClass.Vineyard: return new Style(170, 175, 105, 0, 0);
-                case LandUseClass.Residential: return new Style(175, 180, 145, 0, 0.05f);
-                case LandUseClass.Commercial: return new Style(190, 188, 180, 0, 0.55f);
-                case LandUseClass.Industrial: return new Style(180, 178, 172, 0, 0.65f);
+                case LandUseClass.Forest: return new Style(72, 100, 56, 0, 0);
+                case LandUseClass.Farmland: return new Style(150, 135, 85, 0, 0);
+                case LandUseClass.Orchard: return new Style(100, 135, 70, 0, 0);
+                case LandUseClass.Vineyard: return new Style(115, 130, 70, 0, 0);
+                case LandUseClass.Residential: return new Style(105, 125, 80, 0, 0.05f);
+                case LandUseClass.Commercial: return new Style(135, 133, 128, 0, 0.55f);
+                case LandUseClass.Industrial: return new Style(125, 124, 120, 0, 0.65f);
                 case LandUseClass.Park: case LandUseClass.Sports: return new Style(190, 215, 150, 0, 0);
-                case LandUseClass.Cemetery: return new Style(150, 180, 120, 0, 0.1f);
-                case LandUseClass.Rock: return new Style(190, 185, 175, 1f, 0);
-                case LandUseClass.Scree: return new Style(205, 198, 188, 1f, 0);
+                case LandUseClass.Cemetery: return new Style(95, 125, 75, 0, 0.1f);
+                case LandUseClass.Rock: return new Style(135, 130, 122, 1f, 0);
+                case LandUseClass.Scree: return new Style(150, 144, 134, 1f, 0);
                 case LandUseClass.Glacier: return new Style(235, 242, 250, 0.2f, 0);
-                case LandUseClass.Wetland: return new Style(130, 150, 105, 0, 0);
-                case LandUseClass.Sand: return new Style(225, 210, 165, 0, 0.2f);
-                case LandUseClass.Parking: case LandUseClass.Plaza: return new Style(205, 203, 198, 0, 1f);
-                case LandUseClass.Railway: return new Style(150, 145, 135, 0.3f, 0.3f);
-                case LandUseClass.Urban: return new Style(195, 192, 185, 0, 0.8f);
+                case LandUseClass.Wetland: return new Style(85, 110, 70, 0, 0);
+                case LandUseClass.Sand: return new Style(185, 168, 120, 0, 0.2f);
+                case LandUseClass.Parking: case LandUseClass.Plaza: return new Style(115, 114, 110, 0, 1f);
+                case LandUseClass.Railway: return new Style(105, 100, 92, 0.3f, 0.3f);
+                case LandUseClass.Urban: return new Style(120, 118, 113, 0, 0.8f);
                 case LandUseClass.Water: return new Style(70, 64, 50, 0, 0);
-                default: return new Style(195, 210, 160, 0, 0);
+                default: return new Style(100, 130, 72, 0, 0);
             }
         }
 

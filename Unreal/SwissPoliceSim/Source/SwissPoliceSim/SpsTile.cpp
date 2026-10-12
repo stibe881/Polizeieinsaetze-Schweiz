@@ -104,8 +104,9 @@ void ASpsTile::StartMesh(const FSpsTileMesh& TM)
 	const bool bNear = Staged.Quality == 1;
 	switch (TM.Kind)
 	{
-	case SpsTileKind::Terrain: StageComponent = NewPart(TEXT("Terrain"), false, bNear); break;
-	case SpsTileKind::Roads: StageComponent = NewPart(TEXT("Roads"), false, bNear); break;
+	// Boden und Strassen tragen auch in der mittleren Qualitaet Kollision, sonst findet das Auto dort keinen Boden und sinkt ein
+	case SpsTileKind::Terrain: StageComponent = NewPart(TEXT("Terrain"), false, Staged.Quality <= 2); break;
+	case SpsTileKind::Roads: StageComponent = NewPart(TEXT("Roads"), false, Staged.Quality <= 2); break;
 	case SpsTileKind::BuildingsFar: StageComponent = NewPart(TEXT("BuildingsFar"), bNear, bNear); break;
 	case SpsTileKind::BuildingsDetail: StageComponent = NewPart(TEXT("BuildingsDetail"), bNear, bNear); break;
 	case SpsTileKind::Water: StageComponent = NewPart(TEXT("Water"), false, false); break;
@@ -127,7 +128,7 @@ bool ASpsTile::BuildStep()
 		while (StageSection < TM.Mesh.Sections.Num() && TM.Mesh.Sections[StageSection].Num() == 0) StageSection++;
 		if (StageSection >= TM.Mesh.Sections.Num()) { StageMesh++; StageSection = 0; StageComponent = nullptr; continue; }
 		const bool bNear = Staged.Quality == 1; const int32 S = StageSection;
-		const bool bColl = bNear && (TM.Kind == SpsTileKind::Terrain || TM.Kind == SpsTileKind::Roads || TM.Kind == SpsTileKind::BuildingsFar || TM.Kind == SpsTileKind::BuildingsDetail);
+		const bool bColl = (Staged.Quality <= 2 && (TM.Kind == SpsTileKind::Terrain || TM.Kind == SpsTileKind::Roads)) || (bNear && (TM.Kind == SpsTileKind::BuildingsFar || TM.Kind == SpsTileKind::BuildingsDetail));
 		SpsCreateSection(StageComponent, S, TM.Mesh, S, bColl);
 		FString Slot;
 		switch (TM.Kind)

@@ -151,7 +151,7 @@ namespace SwissServer.Net
         public int DetailRing = 1, MidRing = 2, FarRing = 3; public int MaxTileJobs = Math.Max(2, Environment.ProcessorCount - 1);
         void StreamTiles(ClientConn c) { for (int k = 0; k < MaxTileJobs; k++) if (!StreamOneTile(c)) break; }
 
-        bool Stale(ClientConn c, TileId id) { if (!c.DetailAt.TryGetValue(id, out var d)) return true; double dx = d.e - Game.PE, dn = d.n - Game.PN; return dx * dx + dn * dn > 120 * 120; }
+        bool Stale(ClientConn c, TileId id) { if (!c.DetailAt.TryGetValue(id, out var d)) return true; double dx = d.e - Game.PE, dn = d.n - Game.PN; return dx * dx + dn * dn > 90 * 90; }
 
         // Tiles fuer HTTP-Clients: Nutzdaten kurz im Speicher ablegen, der Client holt sie per GET /tile/{token} (der Unreal-WebSocket schafft nur ~1 MB/s)
         public readonly ConcurrentDictionary<string, (byte[] data, DateTime at)> TileStore = new ConcurrentDictionary<string, (byte[], DateTime)>();
@@ -172,7 +172,11 @@ namespace SwissServer.Net
             TileId best = default; int bestScore = int.MaxValue, bestQ = 0;
             for (int dx = -FarRing; dx <= FarRing; dx++) for (int dy = -FarRing; dy <= FarRing; dy++)
             {
-                var id = new TileId(ft.X + dx, ft.Y + dy); if (!W.Has(id) || c.Building.Contains(id)) continue; int d = Math.Max(Math.Abs(dx), Math.Abs(dy)); int q = d <= DetailRing ? 1 : d <= MidRing ? 2 : 3;
+                var id = new TileId(ft.X + dx, ft.Y + dy); if (!W.Has(id) || c.Building.Contains(id)) continue; int d = Math.Max(Math.Abs(dx), Math.Abs(dy));
+                // Detailstufe nur fuer Kacheln, deren Rand naeher als der Detailradius liegt (sonst bis zu 9 Kacheln mit 10-55 MB)
+                double lx = Game.PE - ft.X * 1000.0, ly = Game.PN - ft.Y * 1000.0;
+                double gx = dx < 0 ? lx : dx > 0 ? 1000.0 - lx : 0.0, gy = dy < 0 ? ly : dy > 0 ? 1000.0 - ly : 0.0;
+                int q = (d <= DetailRing && Math.Sqrt(gx * gx + gy * gy) < TileWire.DetailRadius + 40.0) ? 1 : d <= MidRing ? 2 : 3;
                 if (c.Tiles.TryGetValue(id, out var have) && have <= q && !(q == 1 && Stale(c, id))) continue; int score = d * 10 + (c.Tiles.ContainsKey(id) ? 5 : 0); if (score < bestScore) { bestScore = score; best = id; bestQ = q; }
             }
             if (bestScore == int.MaxValue) return false;

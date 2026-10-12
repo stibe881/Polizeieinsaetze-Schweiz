@@ -9,7 +9,7 @@ namespace SwissServer.Net
     /// <summary>Tile message: all meshes of one 1 km tile in tile-local metres (x = east from the SW corner, y = metres a.s.l., z = north) plus the tree list.</summary>
     public static class TileWire
     {
-        public static double DetailRadius = 230;
+        public static double DetailRadius = 150;
         public static byte[] Build(WorldStore w, TileId id, int quality, double detailE = double.NaN, double detailN = double.NaN)
         {
             if (!w.Source.TryRead(id, out var bytes)) return null;
