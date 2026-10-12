@@ -3,6 +3,8 @@
 #include "SpsPlayer.h"
 #include "SpsVehicle.h"
 #include "SpsHuman.h"
+#include "SpsTile.h"
+#include "EngineUtils.h"
 #include "SWebBrowser.h"
 #include "Widgets/SWeakWidget.h"
 #include "Engine/GameViewportClient.h"
@@ -186,3 +188,15 @@ void ASpsController::OnToggleUi()
 }
 
 void ASpsController::OnPause() { if (bUiFocus) return; if (ASpsClient* C = Client()) { C->SendText(TEXT("{\"t\":\"pause\",\"on\":true}")); C->SendUi(TEXT("open"), TEXT("\"pause\"")); } }
+
+void ASpsController::SpsHide(const FString& Kind)
+{
+	int32 N = 0; for (TActorIterator<ASpsTile> It(GetWorld()); It; ++It) N += It->SetKindVisible(Kind, false);
+	UE_LOG(LogTemp, Log, TEXT("[SPS] %d Teile '%s' ausgeblendet"), N, *Kind);
+}
+
+void ASpsController::SpsShow(const FString& Kind)
+{
+	int32 N = 0; for (TActorIterator<ASpsTile> It(GetWorld()); It; ++It) N += It->SetKindVisible(Kind, true);
+	UE_LOG(LogTemp, Log, TEXT("[SPS] %d Teile '%s' eingeblendet"), N, *Kind);
+}

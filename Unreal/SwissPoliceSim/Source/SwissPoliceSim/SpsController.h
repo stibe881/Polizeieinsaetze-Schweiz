@@ -22,6 +22,10 @@ public:
 	virtual void SetupInputComponent() override;
 	virtual void Tick(float DeltaSeconds) override;
 
+	/** Konsole: "SpsHide Water" / "SpsShow Water" blendet Tile-Teile (Terrain, Roads, BuildingsFar, BuildingsDetail, Water, Furniture, Rail, Trees) aus/ein - zur Fehlersuche. */
+	UFUNCTION(Exec) void SpsHide(const FString& Kind);
+	UFUNCTION(Exec) void SpsShow(const FString& Kind);
+
 private:
 	TSharedPtr<SWebBrowser> Browser;
 	TSharedPtr<SWeakWidget> BrowserHolder;

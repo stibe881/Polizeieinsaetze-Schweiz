@@ -40,6 +40,14 @@ void ASpsTile::Tick(float Dt)
 	OldParts.Reset(); SetActorTickEnabled(false);
 }
 
+int32 ASpsTile::SetKindVisible(const FString& Filter, bool bVisible)
+{
+	int32 N = 0;
+	for (UProceduralMeshComponent* P : Parts) { if (P && P->GetName().Contains(Filter)) { P->SetVisibility(bVisible); N++; } }
+	if (TreePart && TreePart->GetName().Contains(Filter)) { TreePart->SetVisibility(bVisible); N++; }
+	return N;
+}
+
 void ASpsTile::Clear()
 {
 	for (UProceduralMeshComponent* P : OldParts) { if (P) P->DestroyComponent(); }

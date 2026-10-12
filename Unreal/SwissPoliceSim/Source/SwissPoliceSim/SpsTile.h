@@ -31,6 +31,9 @@ public:
 	/** Adds/replaces the merged tree meshes from loaded tree models (index = Kind*... resolved by the caller). */
 	void SetTrees(const FSpsMeshData& Merged);
 
+	/** Debug: Teile, deren Name Filter enthaelt (Terrain, Roads, BuildingsFar, Water, Trees ...), ein-/ausblenden. Gibt die Anzahl betroffener Teile zurueck. */
+	int32 SetKindVisible(const FString& Filter, bool bVisible);
+
 	/** Removes everything (used before a quality upgrade or when the tile leaves the keep range). */
 	void Clear();
 
