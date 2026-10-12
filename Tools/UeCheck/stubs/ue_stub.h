@@ -169,7 +169,7 @@ template <class... A> struct TMulticastDelegate
 #define DECLARE_MULTICAST_DELEGATE_OneParam(Name, P) typedef TMulticastDelegate<P> Name;
 
 // ---------------------------------------------------------------- engine core
-struct UClass; struct UObject { virtual ~UObject() {} UClass* GetClass() const; }; struct UClass_Stub {};
+struct UClass; struct UObject { virtual ~UObject() {} UClass* GetClass() const; FString GetName() const { return FString(); } }; struct UClass_Stub {};
 struct UInputComponent;
 struct UWorld; struct AActor; struct UPrimitiveComponent; struct APlayerController; struct AController;
 struct FCollisionQueryParams { FCollisionQueryParams(FName, bool, const AActor* = nullptr) {} void AddIgnoredActor(const AActor*) {} };
@@ -181,7 +181,7 @@ struct EEndPlayReason { enum Type { Destroyed }; };
 struct FActorTick { bool bCanEverTick = false; bool bStartWithTickEnabled = true; };
 struct UMaterialInterface : UObject {};
 struct UMaterialInstanceDynamic : UMaterialInterface { static UMaterialInstanceDynamic* Create(UMaterialInterface*, UObject*) { return nullptr; } void SetScalarParameterValue(FName, float) {} };
-struct FBoxSphereBounds { float SphereRadius = 0; FVector BoxExtent; };
+struct FBoxSphereBounds { FVector Origin; float SphereRadius = 0; FVector BoxExtent; };
 struct USceneComponent : UObject
 {
 	FBoxSphereBounds Bounds; void SetupAttachment(USceneComponent*, FName = FName()) {} void SetRelativeLocation(const FVector&) {} void SetRelativeRotation(const FRotator&) {} void SetWorldRotation(const FRotator&) {}
@@ -194,7 +194,7 @@ struct UProceduralMeshComponent : USceneComponent
 	bool bUseAsyncCooking = false, bUseComplexAsSimpleCollision = false;
 	void CreateMeshSection(int32, const TArray<FVector>&, const TArray<int32>&, const TArray<FVector>&, const TArray<FVector2D>&, const TArray<FColor>&, const TArray<FProcMeshTangent>&, bool) {}
 	void CreateMeshSection(int32, const TArray<FVector>&, const TArray<int32>&, const TArray<FVector>&, const TArray<FVector2D>&, const TArray<FVector2D>&, const TArray<FVector2D>&, const TArray<FVector2D>&, const TArray<FColor>&, const TArray<FProcMeshTangent>&, bool) {}
-	void SetMaterial(int32, UMaterialInterface*) {} UMaterialInterface* GetMaterial(int32) const { return nullptr; }
+	void SetMaterial(int32, UMaterialInterface*) {} UMaterialInterface* GetMaterial(int32) const { return nullptr; } int32 GetNumMaterials() const { return 0; } int32 GetNumSections() const { return 0; }
 	void SetCastShadow(bool) {} void SetCollisionEnabled(ECollisionEnabled) {} void SetCollisionProfileName(FName) {} void SetCanEverAffectNavigation(bool) {}
 };
 struct UStaticMesh : UObject {}; struct USkeletalMesh : UObject {}; struct UAnimationAsset : UObject {};

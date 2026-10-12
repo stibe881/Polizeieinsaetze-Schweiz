@@ -1,6 +1,7 @@
 #include "SpsTile.h"
 #include "ProceduralMeshComponent.h"
 #include "SpsMaterials.h"
+#include "Materials/MaterialInterface.h"
 
 ASpsTile::ASpsTile()
 {
@@ -136,6 +137,16 @@ bool ASpsTile::BuildStep()
 	}
 	bBuilding = false; Staged = FSpsTileData();
 	for (UProceduralMeshComponent* P : Parts) { if (P) P->SetVisibility(true); }
+	{
+		FString Info;
+		for (UProceduralMeshComponent* P : Parts)
+		{
+			if (!P) continue;
+			UMaterialInterface* M = P->GetNumMaterials() > 0 ? P->GetMaterial(0) : nullptr;
+			Info += FString::Printf(TEXT(" %s[%d Sek, Mat %s, Z %.0f..%.0f]"), *P->GetName(), P->GetNumSections(), M ? *M->GetName() : TEXT("-"), P->Bounds.Origin.Z - P->Bounds.BoxExtent.Z, P->Bounds.Origin.Z + P->Bounds.BoxExtent.Z);
+		}
+		UE_LOG(LogTemp, Log, TEXT("[SPS] Tile %d/%d q%d fertig:%s"), TileX, TileY, Quality, *Info);
+	}
 	if (OldParts.Num() > 0) { OldDestroyIn = 3.f; SetActorTickEnabled(true); }   // alte Teile erst nach 3 s entfernen (Zeit fuer die asynchrone Kollisions-Berechnung)
 	return true;
 }
