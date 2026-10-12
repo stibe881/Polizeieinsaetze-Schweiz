@@ -47,5 +47,5 @@ public:
 
 private:
 	UPROPERTY() TObjectPtr<class UCapsuleComponent> Capsule;
-	FVector TargetPos; float TargetYaw = 0.f; bool bFirst = true, bFallen = false; uint8 PoseNow = 0;
+	FVector TargetPos; float TargetYaw = 0.f; float GroundZ = 0.f; bool bGroundKnown = false; float NextTrace = 0.f; bool bFirst = true, bFallen = false; uint8 PoseNow = 0;
 };

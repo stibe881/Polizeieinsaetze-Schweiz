@@ -116,11 +116,11 @@ namespace SwissServer.Net
                         m.TryGetProperty("siren", out var si) && si.GetBoolean(), m.TryGetProperty("blue", out var bl) && bl.GetBoolean(), m.GetProperty("vE").GetDouble(), m.GetProperty("vN").GetDouble(), vh0, (float)m.GetProperty("vYaw").GetDouble(),
                         m.TryGetProperty("fuel", out var fu) ? (float)fu.GetDouble() : 1f, m.TryGetProperty("damage", out var da) ? (float)da.GetDouble() : 0f); break;
                 case "model": SendModel(c, m.GetProperty("key").GetString()); break;
-                case "accept": g.Accept(); break; case "decline": g.Decline(); break;
+                case "accept": g.Accept(); break; case "decline": g.Decline(); break; case "abort": g.Abort(); break;
                 case "radar": g.Radar(m.GetProperty("on").GetBoolean()); break;
                 case "measure": g.Measure(m.GetProperty("vehicleId").GetInt32(), m.TryGetProperty("dist", out var di) ? (float)di.GetDouble() : 50f); break;
                 case "stop": g.SignalStop(m.TryGetProperty("vehicleId", out var vi) ? vi.GetInt32() : 0); break;
-                case "approach": g.Approach(m.TryGetProperty("vehicleId", out var av) ? av.GetInt32() : 0, m.TryGetProperty("actorId", out var aa) ? aa.GetInt32() : 0); break;
+                case "approach": g.Approach(m.TryGetProperty("vehicleId", out var av) ? av.GetInt32() : 0, m.TryGetProperty("actorId", out var aa) ? aa.GetInt32() : 0, m.TryGetProperty("pedId", out var ap) ? ap.GetInt32() : 0); break;
                 case "say": g.Say(m.GetProperty("text").GetString()); break;
                 case "enc": g.EncounterAction(m.GetProperty("op").GetString(), m.TryGetProperty("fine", out var fi) ? fi.GetInt32() : 0, 0); break;
                 case "computer": g.ComputerQuery(m.GetProperty("kind").GetString(), Str(m, "plate"), Str(m, "first"), Str(m, "last"), Str(m, "birth"), m.TryGetProperty("reason", out var re) ? re.GetInt32() : 0); break;

@@ -74,6 +74,10 @@ void ASpsClient::BeginPlay()
 		GEngine->Exec(GetWorld(), TEXT("r.DynamicGlobalIlluminationMethod 0"));
 		GEngine->Exec(GetWorld(), TEXT("r.ReflectionMethod 0"));   // Bildschirm-Reflexionen spiegelten den hellen Himmel in jede Strasse
 		GEngine->Exec(GetWorld(), TEXT("r.SSR.Quality 0"));
+		// Virtuelle Shadow Maps sind fuer Nanite gebaut; fuer Procedural-Meshes (Warnung "Jobwarteschlangen-Ueberlauf") sind klassische Kaskaden deutlich billiger
+		GEngine->Exec(GetWorld(), TEXT("r.Shadow.Virtual.Enable 0"));
+		GEngine->Exec(GetWorld(), TEXT("r.Shadow.CSM.MaxCascades 3"));
+		GEngine->Exec(GetWorld(), TEXT("r.Shadow.DistanceScale 0.7"));
 		GEngine->Exec(GetWorld(), TEXT("r.AmbientOcclusionStaticFraction 1"));
 		// Leistung: Die Welt besteht aus grossen Procedural-Meshes ohne LOD; teure Effekte reduzieren
 		GEngine->Exec(GetWorld(), TEXT("r.VolumetricFog 0"));

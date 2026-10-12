@@ -44,6 +44,16 @@ namespace SwissServer.Sim
             if (Active.Urgency >= 3) Info("Dringlicher Einsatz: Blaulicht und Wechselklanghorn sind zulässig (Art. 100 Ziff. 4 SVG, sorgfältig fahren).");
         }
 
+        /// <summary>Angenommenen Einsatz abbrechen (Zentrale vergibt ihn weiter). Nicht waehrend einer laufenden Kontrolle.</summary>
+        public void Abort()
+        {
+            if (Active == null) return;
+            if (InEncounter) { Warn("Zuerst die laufende Kontrolle beenden, dann den Einsatz abbrechen."); return; }
+            Active.State = IncidentState.Declined; Active = null; ClearRoute();
+            Radio($"{CallSign}: Wir brechen den Einsatz ab."); Radio("Zentrale: Verstanden, wir vergeben den Einsatz weiter.");
+            _nextGen = Clock.ElapsedGameSeconds + 300; _clearAt = _wall + 20;
+        }
+
         public void Decline() { if (Offered == null) return; Radio("Zentrale: Verstanden, wir vergeben den Einsatz weiter."); Offered.State = IncidentState.Declined; Offered = null; _nextGen = Clock.ElapsedGameSeconds + 400; }
 
         void CheckArrival(float dt)

@@ -56,6 +56,7 @@ void ASpsPlayerFoot::Tick(float Dt)
 	const APlayerController* PC = Cast<APlayerController>(Controller);
 	float F = 0.f, R = 0.f;
 	if (PC) { F = (PC->IsInputKeyDown(EKeys::W) ? 1.f : 0.f) - (PC->IsInputKeyDown(EKeys::S) ? 1.f : 0.f); R = (PC->IsInputKeyDown(EKeys::D) ? 1.f : 0.f) - (PC->IsInputKeyDown(EKeys::A) ? 1.f : 0.f); }
+	if (PC) bRun = PC->IsInputKeyDown(EKeys::LeftShift) || PC->IsInputKeyDown(EKeys::RightShift);   // direkt abfragen, unabhaengig von der Tastenbindung
 	GetCharacterMovement()->MaxWalkSpeed = bRun ? 560.f : 170.f;
 	const FRotator Yaw(0.f, Controller->GetControlRotation().Yaw, 0.f);
 	AddMovementInput(FRotationMatrix(Yaw).GetUnitAxis(EAxis::X), F);

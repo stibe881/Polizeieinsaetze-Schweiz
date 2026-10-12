@@ -48,6 +48,7 @@ private:
 	void OnCamera();
 	void OnAccept();
 	void OnDecline();
+	void OnAbort();
 	void OnQuickSave();
 	void OnQuickLoad();
 	void OnPause();

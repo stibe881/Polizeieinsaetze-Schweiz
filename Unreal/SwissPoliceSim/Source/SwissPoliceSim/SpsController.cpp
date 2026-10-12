@@ -82,6 +82,7 @@ void ASpsController::SetupInputComponent()
 	InputComponent->BindKey(EKeys::V, IE_Pressed, this, &ASpsController::OnCamera);
 	InputComponent->BindKey(EKeys::Enter, IE_Pressed, this, &ASpsController::OnAccept);
 	InputComponent->BindKey(EKeys::BackSpace, IE_Pressed, this, &ASpsController::OnDecline);
+	InputComponent->BindKey(EKeys::Delete, IE_Pressed, this, &ASpsController::OnAbort);
 	InputComponent->BindKey(EKeys::F5, IE_Pressed, this, &ASpsController::OnQuickSave);
 	InputComponent->BindKey(EKeys::F9, IE_Pressed, this, &ASpsController::OnQuickLoad);
 	InputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &ASpsController::OnPause);
@@ -170,10 +171,12 @@ void ASpsController::OnTalk()
 {
 	ASpsClient* C = Client(); if (!C || bUiFocus) return;
 	const FVector P = GetPawn() ? GetPawn()->GetActorLocation() : FVector::ZeroVector;
-	int32 BestCar = 0, BestActor = 0; float BestD = 1200.f;
+	int32 BestCar = 0, BestActor = 0, BestPed = 0; float BestD = 1200.f;
 	for (const TPair<int32, TObjectPtr<ASpsCar>>& K : C->Cars) { if (!K.Value) continue; const float D = FVector::Dist2D(K.Value->GetActorLocation(), P); if (D < BestD && K.Value->GetVelocity().Size() < 30.f) { BestD = D; BestCar = K.Key; BestActor = 0; } }
 	for (const TPair<int32, TObjectPtr<ASpsHuman>>& K : C->Actors) { if (!K.Value) continue; const float D = FVector::Dist2D(K.Value->GetActorLocation(), P); if (D < BestD) { BestD = D; BestActor = K.Key; BestCar = 0; } }
-	if (BestCar || BestActor) C->SendText(FString::Printf(TEXT("{\"t\":\"approach\",\"vehicleId\":%d,\"actorId\":%d}"), BestCar, BestActor));
+	// Passanten (Personenkontrolle): nur wenn keine Person/Fahrzeug naeher ist
+	for (const TPair<int32, TObjectPtr<ASpsHuman>>& K : C->Peds) { if (!K.Value) continue; const float D = FVector::Dist2D(K.Value->GetActorLocation(), P); if (D < BestD && D < 1100.f) { BestD = D; BestPed = K.Key; BestActor = 0; BestCar = 0; } }
+	if (BestCar || BestActor || BestPed) C->SendText(FString::Printf(TEXT("{\"t\":\"approach\",\"vehicleId\":%d,\"actorId\":%d,\"pedId\":%d}"), BestCar, BestActor, BestPed));
 }
 
 void ASpsController::OnCamera()
@@ -183,6 +186,7 @@ void ASpsController::OnCamera()
 }
 
 void ASpsController::OnAccept() { if (ASpsClient* C = Client()) { if (!bUiFocus) C->SendText(TEXT("{\"t\":\"accept\"}")); } }
+void ASpsController::OnAbort() { if (ASpsClient* C = Client()) { if (!bUiFocus) C->SendText(TEXT("{\"t\":\"abort\"}")); } }
 void ASpsController::OnDecline() { if (ASpsClient* C = Client()) { if (!bUiFocus) C->SendText(TEXT("{\"t\":\"decline\"}")); } }
 void ASpsController::OnQuickSave() { if (ASpsClient* C = Client()) C->SendText(TEXT("{\"t\":\"save\",\"slot\":1}")); }
 void ASpsController::OnQuickLoad() { if (ASpsClient* C = Client()) C->SendText(TEXT("{\"t\":\"load\",\"slot\":1}")); }

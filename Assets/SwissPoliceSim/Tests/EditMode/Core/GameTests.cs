@@ -512,6 +512,19 @@ namespace SwissPoliceSim.Tests
         }
 
         [NUnit.Framework.Test]
+        public void PedestrianPersonCheck_WithoutVehicle_Works()
+        {
+            var c = CitizenFactory.Create(4711, "BE", "Bern", "", 0, 0);
+            var sit = new NpcSituation { Place = "Bern", IsDriver = false, InVehicle = false };
+            var enc = new Encounter(EncounterKind.PersonCheck, c, sit, PoliceCatalog.ById("KAPO_BE"), TestPaths.Obv(), 4711);
+            NUnit.Framework.Assert.IsNotEmpty(c.FullName);
+            enc.Say("Guten Tag, Polizei. Eine allgemeine Personenkontrolle.");
+            enc.RequestDocuments();
+            enc.Release();
+            var sum = enc.Evaluate(); NUnit.Framework.Assert.IsNotNull(sum);
+        }
+
+        [NUnit.Framework.Test]
         public void SpeedingStop_CorrectFine_IsLawfulAndScoresWell()
         {
             var e = Make(ViolationType.Speeding, 58, 50, SpeedZone.Urban, 1);

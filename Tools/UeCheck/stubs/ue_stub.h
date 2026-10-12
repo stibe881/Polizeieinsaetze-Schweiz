@@ -148,7 +148,7 @@ struct FMath
 	template <class T> static T Abs(T a) { return a < 0 ? -a : a; } template <class T> static T Sign(T a) { return a < 0 ? -1 : 1; }
 	template <class A, class C> static A Lerp(A a, A b, C t) { return a + (b - a) * t; }
 	static float Sin(float v) { return std::sin(v); } static float Cos(float v) { return std::cos(v); } static float Tan(float v) { return std::tan(v); } static float Atan2(float a, float b) { return std::atan2(a, b); } static float Acos(float v) { return std::acos(v); }
-	static float Fmod(float a, float b) { return std::fmod(a, b); } static double Fmod(double a, double b) { return std::fmod(a, b); }
+	static float Frac(float a) { return a - std::floor(a); } static float Fmod(float a, float b) { return std::fmod(a, b); } static double Fmod(double a, double b) { return std::fmod(a, b); }
 	static float RadiansToDegrees(float r) { return r * 57.29578f; } static float DegreesToRadians(float d) { return d / 57.29578f; }
 	static float FindDeltaAngleDegrees(float a, float b) { return b - a; }
 	static float FInterpTo(float c, float t, float dt, float s) { return c + (t - c) * std::min(1.f, dt * s); }
@@ -241,7 +241,7 @@ struct UInputComponent : UObject
 {
 	template <class U, class F> void BindAxisKey(FKey, U*, F) {} template <class U, class F> void BindKey(FKey, int, U*, F) {}
 };
-namespace EKeys { extern FKey W, A, S, D, F, E, R, G, C, V, M, P, N, K, B, Q, L, H, F1, F2, Insert, F5, F9, Tab, Enter, BackSpace, Escape, LeftShift, SpaceBar, MouseX, MouseY, LeftMouseButton; }
+namespace EKeys { extern FKey W, A, S, D, F, E, R, G, C, V, M, P, N, K, B, Q, L, H, F1, F2, Insert, F5, F9, Tab, Enter, BackSpace, Escape, LeftShift, RightShift, Delete, SpaceBar, MouseX, MouseY, LeftMouseButton; }
 enum { IE_Pressed, IE_Released };
 enum class EAutoReceiveInput { Disabled };
 

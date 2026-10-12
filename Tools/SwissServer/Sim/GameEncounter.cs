@@ -19,7 +19,7 @@ namespace SwissServer.Sim
     /// <summary>Contact with a person, radar/stop enforcement, pursuit and navigation (ported from the former Unity controllers).</summary>
     public sealed partial class Game
     {
-        public Encounter Encounter; public SActor EncActor; public TrafficVehicle EncVehicle; public bool RadarActive; public Measurement LastMeasure; public TrafficVehicle StoppedVehicle; double _stopRequestTime;
+        public Encounter Encounter; public Pedestrian EncPed; public SActor EncActor; public TrafficVehicle EncVehicle; public bool RadarActive; public Measurement LastMeasure; public TrafficVehicle StoppedVehicle; double _stopRequestTime;
         public PursuitManager Pursuit = new PursuitManager(); public TrafficVehicle PursuitTarget; public float RiskScore; public bool RoadblockReady = true; float _assessTimer;
         public Nav Nav = new Nav(); public readonly List<Measurement> History = new List<Measurement>();
         static readonly string[] Colours = { "weiss", "schwarz", "silber", "grau", "blau", "rot", "grün", "braun", "beige", "orange", "gelb", "bordeaux" };
@@ -70,9 +70,10 @@ namespace SwissServer.Sim
         }
 
         // ------------------------------------------------------------------ encounter
-        public void Approach(int vehicleId, int actorId)
+        public void Approach(int vehicleId, int actorId, int pedId = 0)
         {
             if (InEncounter) return;
+            if (pedId > 0) { var pd = Peds?.Peds.Find(x => x.Id == pedId); if (pd != null && Dist(pd.E, pd.N) < 12) BeginWithPedestrian(pd); return; }
             if (actorId > 0) { var a = Actors.FirstOrDefault(x => x.Id == actorId); if (a != null && Dist(a.E, a.N) < 12) BeginWithActor(a); return; }
             var v = Traffic?.Find(vehicleId); if (v == null || Dist(v.E, v.N) > 12) return; var citizen = CitizenForVehicle(v); BeginWithVehicle(v, citizen, LastMeasure != null && LastMeasure.VehicleId == v.Id ? LastMeasure : null);
         }
@@ -80,6 +81,17 @@ namespace SwissServer.Sim
         double Dist(double e, double n) { double cx = PInVehicle ? VE : PE, cn = PInVehicle ? VN : PN; return Math.Sqrt((e - PE) * (e - PE) + (n - PN) * (n - PN)); }
 
         void ApplyJurisdiction(Encounter e) { JurisdictionManager.Apply(e.Ctx, Jurisdiction, Pursuit.Active, false); }
+
+        /// <summary>Personenkontrolle einer Passantin / eines Passanten (Ausweis, Befragung).</summary>
+        public void BeginWithPedestrian(Pedestrian p)
+        {
+            if (p == null || InEncounter) return;
+            var c = CitizenFactory.Create(p.Id * 6151 + Seed, "BE", PlaceName ?? "", "", 0, 0);
+            var sit = new NpcSituation { Place = PlaceName, IsDriver = false, InVehicle = false, TimeOfDayNight = Hour < 6 || Hour > 21 };
+            Encounter = new Encounter(EncounterKind.PersonCheck, c, sit, Corps, Obv, c.Seed); EncActor = null; EncVehicle = null; EncPed = p; ApplyJurisdiction(Encounter);
+            p.State = PedState.Standing; p.Speed = 0; if (Peds != null) p.WaitUntil = (float)(Peds.Time + 600);
+            Computer.Register(c); EncounterWindowRequested = true; PushEncounter();
+        }
 
         public void BeginWithActor(SActor a)
         {
@@ -190,6 +202,7 @@ namespace SwissServer.Sim
             foreach (var f in sum.Findings) Note(f.StartsWith("Rechtswidrig") ? "warn" : "info", f, 9f);
             if (EncVehicle != null && Traffic != null && EncVehicle.Mode != DriverMode.Fleeing && !enc.Arrested) Traffic.ReleaseStop(EncVehicle);
             if (EncActor != null && !EncActor.Cuffed && !EncActor.Fleeing) EncActor.Pose = (byte)PoseKind.Idle;
+            if (EncPed != null && Peds != null) { EncPed.WaitUntil = (float)Peds.Time; EncPed.Speed = EncPed.Speed > 0 ? EncPed.Speed : 1.35f; EncPed = null; }
             Encounter = null; EncActor = null; EncVehicle = null; EncounterWindowRequested = false; Hub.Broadcast(new { t = "encounterEnd" });
             if (evaluate) Note(sum.Correct ? "good" : "warn", $"Kontakt beendet – Bewertung {(int)Math.Round(sum.Score01 * 100)} %", 7f);
         }

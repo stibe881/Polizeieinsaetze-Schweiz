@@ -127,6 +127,19 @@ void ASpsHuman::Tick(float Dt)
 {
 	Super::Tick(Dt);
 	FVector P = FMath::VInterpTo(GetActorLocation(), TargetPos, Dt, 10.f);
+	// Fuesse auf den echten Boden setzen: der Server kennt nur die Gelaendehoehe, Trottoir und Strasse liegen darueber (sonst stecken die Fuesse im Boden)
+	NextTrace -= Dt;
+	if (NextTrace <= 0.f && !bFallen)
+	{
+		NextTrace = 0.25f + 0.1f * FMath::Frac(TargetPos.X * 0.001f);
+		FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(SpsPedGround), false, this);
+		if (GetWorld()->LineTraceSingleByChannel(H, TargetPos + FVector(0, 0, 150.f), TargetPos - FVector(0, 0, 400.f), ECC_Visibility, Q))
+		{
+			auto* C = H.GetComponent();
+			if (C && (C->GetName().Contains(TEXT("Roads")) || C->GetName().Contains(TEXT("Terrain")) || C->GetName().Contains(TEXT("Buildings")))) { GroundZ = H.ImpactPoint.Z; bGroundKnown = true; }
+		}
+	}
+	if (bGroundKnown && !bFallen) P.Z = FMath::FInterpTo(GetActorLocation().Z, GroundZ, Dt, 14.f);
 	FRotator R = GetActorRotation(); R.Yaw = FMath::FInterpTo(R.Yaw, FRotator::NormalizeAxis(TargetYaw), Dt, 8.f);
 	if (PoseNow == SpsPose::Fallen) { R.Roll = 85.f; P.Z += 18.f; } else R.Roll = 0.f;
 	SetActorLocationAndRotation(P, R);
