@@ -1,4 +1,5 @@
 #include "SpsTile.h"
+#include "UObject/UObjectGlobals.h"
 #include "ProceduralMeshComponent.h"
 #include "SpsMaterials.h"
 #include "Materials/MaterialInterface.h"
@@ -12,7 +13,9 @@ ASpsTile::ASpsTile()
 
 UProceduralMeshComponent* ASpsTile::NewPart(const FString& Name, bool bShadow, bool bCollision)
 {
-	UProceduralMeshComponent* P = NewObject<UProceduralMeshComponent>(this, *Name);
+	// Eindeutiger Name: NewObject mit einem bereits vergebenen Namen ersetzt das bestehende Objekt an Ort und Stelle,
+	// dann zeigen "alte" und "neue" Teile auf dasselbe Objekt und das Aufraeumen der alten zerstoert die neuen (Strassen verschwinden, Boden fehlt, Spieler faellt durch)
+	UProceduralMeshComponent* P = NewObject<UProceduralMeshComponent>(this, MakeUniqueObjectName(this, UProceduralMeshComponent::StaticClass(), FName(*Name)));
 	P->SetupAttachment(GetRootComponent());
 	P->bUseAsyncCooking = true;
 	P->bUseComplexAsSimpleCollision = bCollision;

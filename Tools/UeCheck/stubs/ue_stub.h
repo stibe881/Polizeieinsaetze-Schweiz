@@ -29,6 +29,7 @@
 typedef int32_t int32; typedef uint8_t uint8; typedef uint16_t uint16; typedef uint32_t uint32; typedef int64_t int64; typedef wchar_t TCHAR; typedef char ANSICHAR; typedef size_t SIZE_T;
 
 struct FName { FName() {} FName(const wchar_t*) {} };
+inline FName MakeUniqueObjectName(void*, void*, FName) { return FName(); }
 struct FText { static FText FromString(const struct FString&); };
 struct FString
 {
@@ -192,6 +193,7 @@ struct FProcMeshTangent {};
 template <class T> struct StaticClassHolder {};
 struct UProceduralMeshComponent : USceneComponent
 {
+	static UClass_Stub* StaticClassStub() { return nullptr; }
 	bool bUseAsyncCooking = false, bUseComplexAsSimpleCollision = false;
 	void CreateMeshSection(int32, const TArray<FVector>&, const TArray<int32>&, const TArray<FVector>&, const TArray<FVector2D>&, const TArray<FColor>&, const TArray<FProcMeshTangent>&, bool) {}
 	void CreateMeshSection(int32, const TArray<FVector>&, const TArray<int32>&, const TArray<FVector>&, const TArray<FVector2D>&, const TArray<FVector2D>&, const TArray<FVector2D>&, const TArray<FVector2D>&, const TArray<FColor>&, const TArray<FProcMeshTangent>&, bool) {}
