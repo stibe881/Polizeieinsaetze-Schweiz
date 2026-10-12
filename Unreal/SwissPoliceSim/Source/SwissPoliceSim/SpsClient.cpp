@@ -72,7 +72,8 @@ void ASpsClient::BeginPlay()
 	if (GEngine)
 	{
 		GEngine->Exec(GetWorld(), TEXT("r.DynamicGlobalIlluminationMethod 0"));
-		GEngine->Exec(GetWorld(), TEXT("r.ReflectionMethod 2"));
+		GEngine->Exec(GetWorld(), TEXT("r.ReflectionMethod 0"));   // Bildschirm-Reflexionen spiegelten den hellen Himmel in jede Strasse
+		GEngine->Exec(GetWorld(), TEXT("r.SSR.Quality 0"));
 		GEngine->Exec(GetWorld(), TEXT("r.AmbientOcclusionStaticFraction 1"));
 		// Leistung: Die Welt besteht aus grossen Procedural-Meshes ohne LOD; teure Effekte reduzieren
 		GEngine->Exec(GetWorld(), TEXT("r.VolumetricFog 0"));

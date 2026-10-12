@@ -222,7 +222,7 @@ struct USpringArmComponent : USceneComponent
 inline FName USpringArmComponent::SocketName;
 struct UDirectionalLightComponent : USceneComponent { int32 ForwardShadingPriority = 0; float Intensity = 0.f; void SetLightColor(FLinearColor, bool = true) {} void SetAtmosphereSunLight(bool) {} void SetAtmosphereSunLightIndex(int32) {} void SetIntensity(float) {} void SetLightSourceAngle(float) {} void SetCastShadows(bool) {} };
 struct USkyAtmosphereComponent : USceneComponent {};
-struct USkyLightComponent : USceneComponent { float Intensity = 0.f; bool bLowerHemisphereIsBlack = true; void SetLowerHemisphereColor(const FLinearColor&) {} bool bRealTimeCapture = false; void SetIntensity(float) {} void RecaptureSky() {} };
+struct USkyLightComponent : USceneComponent { float Intensity = 0.f; float SpecularScale = 1.f; bool bLowerHemisphereIsBlack = true; void SetLowerHemisphereColor(const FLinearColor&) {} bool bRealTimeCapture = false; void SetIntensity(float) {} void RecaptureSky() {} };
 struct UExponentialHeightFogComponent : USceneComponent { void SetFogDensity(float) {} void SetVolumetricFog(bool) {} void SetFogInscatteringColor(FLinearColor) {} };
 struct UVolumetricCloudComponent : USceneComponent { void SetMaterial(UMaterialInterface*) {} void SetLayerBottomAltitude(float) {} };
 enum EAutoExposureMethod { AEM_Histogram };

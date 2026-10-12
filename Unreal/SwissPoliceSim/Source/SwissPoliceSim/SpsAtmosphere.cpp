@@ -27,6 +27,7 @@ ASpsAtmosphere::ASpsAtmosphere()
 
 	SkyLight = CreateDefaultSubobject<USkyLightComponent>(TEXT("SkyLight"));
 	SkyLight->SetupAttachment(Root); SkyLight->SetMobility(EComponentMobility::Movable); SkyLight->bRealTimeCapture = false;   // Echtzeit-Capture kostet jedes Bild; stattdessen alle paar Sekunden (siehe Apply)
+	SkyLight->SpecularScale = 0.3f;   // Asphalt im streifenden Blickwinkel spiegelte sonst den hellen Himmel (blasse Strassen)
 	SkyLight->SetIntensity(1.f); SkyLight->bLowerHemisphereIsBlack = false; SkyLight->SetLowerHemisphereColor(FLinearColor(0.25f, 0.25f, 0.25f));
 
 	Fog = CreateDefaultSubobject<UExponentialHeightFogComponent>(TEXT("Fog"));
