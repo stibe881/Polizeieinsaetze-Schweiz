@@ -164,6 +164,16 @@ void ASpsPlayerCar::Tick(float Dt)
 	AddActorWorldOffset(FVector(Delta.X, Delta.Y, 0.f), true, &Blocked);
 	if (Blocked.bBlockingHit)
 	{
+		// Gelaende und Strassen blockieren nie: die Hoehe folgt dem Boden (Wiese, Boeschung, Randstein), sonst bleibt man auf dem Rasen haengen
+		auto* GC = Blocked.GetComponent();
+		if (GC && (GC->GetName().Contains(TEXT("Terrain")) || GC->GetName().Contains(TEXT("Roads"))))
+		{
+			AddActorWorldOffset(FVector(Delta.X, Delta.Y, 0.f), false);
+			Blocked = FHitResult();
+		}
+	}
+	if (Blocked.bBlockingHit)
+	{
 		const float Impact = FMath::Abs(SpeedMs);
 		{   // Diagnose "unsichtbare Wand": was blockiert? (hoechstens 1x pro Sekunde)
 			static double LastBlockLog = 0.0; const double T = GetWorld()->GetTimeSeconds();
