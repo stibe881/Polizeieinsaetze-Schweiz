@@ -47,12 +47,14 @@ namespace SwissPoliceSim.Core.Meshing
         public static MeshData Build(TerrainTileData d, byte[] landUse, int stride = 1)
         {
             int res = d.Resolution, n = (res - 1) / stride + 1; float sp = d.Spacing * stride;
+            // gröbere Raster weichen am Hang stärker von der fein abgetasteten Strasse ab: je Stufe tiefer legen, sonst verdeckt das Gelände die Strassen (flackernde Strassen)
+            float clearance = RoadClearance + 0.6f * (stride - 1);
             var m = new MeshData(1); int total = n * n;
             for (int j = 0; j < n; j++)
                 for (int i = 0; i < n; i++)
                 {
                     int c = Math.Min(res - 1, i * stride), r = Math.Min(res - 1, j * stride);
-                    float x = c * d.Spacing, z = r * d.Spacing, y = d.Height(c, r) - RoadClearance;
+                    float x = c * d.Spacing, z = r * d.Spacing, y = d.Height(c, r) - clearance;
                     float hx = d.Height(Math.Min(res - 1, c + 1), r) - d.Height(Math.Max(0, c - 1), r), hz = d.Height(c, Math.Min(res - 1, r + 1)) - d.Height(c, Math.Max(0, r - 1));
                     float nx = -hx, nz = -hz, ny = 2 * d.Spacing, l = (float)Math.Sqrt(nx * nx + ny * ny + nz * nz);
                     byte cls = 0;
