@@ -27,7 +27,7 @@ void ASpsTile::FillMesh(UProceduralMeshComponent* P, const FSpsMeshData& M, TFun
 	for (int32 s = 0; s < M.Sections.Num(); s++)
 	{
 		if (M.Sections[s].Num() == 0) continue;
-		SpsCreateSection(P, s, M, s, bCollision);
+		SpsCreateSection(P, s, M, s, bCollision, P->GetName().Contains(TEXT("Terrain")) || P->GetName().Contains(TEXT("Roads")));
 		P->SetMaterial(s, SPSMaterials::Get(Slot(s)));
 	}
 }
@@ -141,7 +141,7 @@ bool ASpsTile::BuildStep()
 		if (StageSection >= TM.Mesh.Sections.Num()) { StageMesh++; StageSection = 0; StageComponent = nullptr; continue; }
 		const bool bNear = Staged.Quality == 1; const int32 S = StageSection;
 		const bool bColl = (Staged.Quality <= 2 && (TM.Kind == SpsTileKind::Terrain || TM.Kind == SpsTileKind::Roads)) || (bNear && (TM.Kind == SpsTileKind::BuildingsFar || TM.Kind == SpsTileKind::BuildingsDetail));
-		SpsCreateSection(StageComponent, S, TM.Mesh, S, bColl);
+		SpsCreateSection(StageComponent, S, TM.Mesh, S, bColl, TM.Kind == SpsTileKind::Terrain || TM.Kind == SpsTileKind::Roads);
 		FString Slot;
 		switch (TM.Kind)
 		{

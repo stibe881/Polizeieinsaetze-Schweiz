@@ -54,7 +54,7 @@ class UProceduralMeshComponent;
  * Creates one mesh section from the indices of <paramref name="Section"/> only: unused vertices are dropped and the indices remapped, so a mesh with many
  * materials does not duplicate its whole vertex buffer per section.
  */
-void SpsCreateSection(UProceduralMeshComponent* Target, int32 SectionIndex, const FSpsMeshData& Mesh, int32 Section, bool bCollision);
+void SpsCreateSection(UProceduralMeshComponent* Target, int32 SectionIndex, const FSpsMeshData& Mesh, int32 Section, bool bCollision, bool bDoubleSided = false);
 
 /** Car state flags (FSpsCarState::Flags). */
 namespace SpsCarFlag { enum : uint16 { Brake = 1, Hazard = 2, IndLeft = 4, IndRight = 8, Stopped = 32, Crashed = 64 }; }

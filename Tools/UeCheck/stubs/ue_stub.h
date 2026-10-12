@@ -67,6 +67,7 @@ template <class T, class... A> TSharedPtr<T, ESPMode::ThreadSafe> MakeShared(A&&
 
 template <class T> struct TArray
 {
+	void Reserve(int32) {}
 	std::vector<T> V;
 	int32 Num() const { return (int32)V.size(); }
 	T& Add(const T& v) { V.push_back(v); return V.back(); } T& Add(T&& v) { V.push_back(std::move(v)); return V.back(); }

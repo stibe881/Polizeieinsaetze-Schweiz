@@ -93,7 +93,7 @@ namespace SpsProtocol
 	}
 }
 
-void SpsCreateSection(UProceduralMeshComponent* Target, int32 SectionIndex, const FSpsMeshData& M, int32 Section, bool bCollision)
+void SpsCreateSection(UProceduralMeshComponent* Target, int32 SectionIndex, const FSpsMeshData& M, int32 Section, bool bCollision, bool bDoubleSided)
 {
 	if (!Target || !M.Sections.IsValidIndex(Section) || M.Sections[Section].Num() == 0) return;
 	const TArray<int32>& Src = M.Sections[Section];
@@ -106,6 +106,12 @@ void SpsCreateSection(UProceduralMeshComponent* Target, int32 SectionIndex, cons
 		const int32 S = Src[i]; int32 R = Remap[S];
 		if (R < 0) { R = V.Num(); Remap[S] = R; V.Add(M.Vertices[S]); N.Add(M.Normals[S]); UV.Add(M.UV0[S]); if (bUv1) UV1.Add(M.UV1[S]); C.Add(M.Colors[S]); }
 		Idx[i] = R;
+	}
+	if (bDoubleSided)
+	{
+		// Rueckseiten mitzeichnen: Boden und Strassen bleiben sichtbar, egal von welcher Seite man sie sieht (Wicklung / Position unter der Oberflaeche)
+		const int32 N0 = Idx.Num(); Idx.Reserve(N0 * 2);
+		for (int32 i = 0; i + 2 < N0; i += 3) { Idx.Add(Idx[i]); Idx.Add(Idx[i + 2]); Idx.Add(Idx[i + 1]); }
 	}
 	TArray<FProcMeshTangent> NoTangents;
 	if (bUv1) { TArray<FVector2D> Empty; Target->CreateMeshSection(SectionIndex, V, Idx, N, UV, UV1, Empty, Empty, C, NoTangents, bCollision); }
